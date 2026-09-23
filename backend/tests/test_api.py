@@ -74,6 +74,11 @@ def test_invalid_scenario_does_not_receive_a_score() -> None:
 
     assert response.status_code == 422
     assert "score" not in response.json()
+    analysis = api_request(
+        "POST", "/api/analyze", json_body={"selections": REFERENCE_SCENARIO[:4]}
+    )
+    assert analysis.status_code == 422
+    assert "score" not in analysis.json()
 
 
 def test_web_app_is_served_from_the_same_origin() -> None:

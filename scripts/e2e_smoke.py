@@ -81,6 +81,13 @@ def main() -> int:
             page.on("pageerror", lambda error: page_errors.append(str(error)))
             page.goto(base_url, wait_until="networkidle")
             page.locator("#workspace").wait_for(state="visible")
+            expect(page.locator("#baseline-scores .baseline-score-card")).to_have_count(5)
+            page.locator(".baseline-details summary").click()
+            nura_profile = page.locator(".baseline-profile").filter(has=page.locator("h3", has_text="Нура"))
+            expect(nura_profile.locator(".baseline-indicators .is-critical")).to_have_count(2)
+            expect(nura_profile.locator(".baseline-indicators")).to_contain_text("38")
+            expect(nura_profile.locator(".baseline-indicators")).to_contain_text("35")
+            page.locator(".baseline-details summary").click()
 
             choose_measure(page, "M7", "nura")
             choose_measure(page, "M8", "nura")
@@ -192,6 +199,48 @@ def main() -> int:
             expect(budget_page.locator(".selection-slot.filled")).to_have_count(4)
             expect(budget_page.locator("#budget-spent")).to_have_text("99")
             budget_context.close()
+
+            stale_context = browser.new_context(viewport={"width": 1100, "height": 900})
+            stale_page = stale_context.new_page()
+            stale_page.on("pageerror", lambda error: page_errors.append(str(error)))
+            stale_page.add_init_script("""
+                (() => {
+                  const fetchOriginal = window.fetch.bind(window);
+                  window.fetch = (input, options) => {
+                    if (input !== '/api/analyze') return fetchOriginal(input, options);
+                    return fetchOriginal(input, options).then((response) => new Promise((resolve) => {
+                      document.documentElement.dataset.pendingAnalyze = 'true';
+                      window.releaseAnalyze = () => resolve(response);
+                    }));
+                  };
+                })();
+            """)
+            stale_page.goto(base_url, wait_until="networkidle")
+            for measure_id, district_id in [
+                ("M7", "nura"), ("M8", "nura"), ("M10", "nura"),
+                ("M12", None), ("M5", "saryarka"),
+            ]:
+                choose_measure(stale_page, measure_id, district_id)
+            stale_page.locator("#calculate-button").click()
+            stale_page.locator('html[data-pending-analyze="true"]').wait_for()
+            stale_page.locator('[data-remove="M7"]').click()
+            expect(stale_page.locator(".selection-slot.filled")).to_have_count(4)
+            stale_page.evaluate("window.releaseAnalyze()")
+            stale_page.wait_for_function("state.loading === false")
+            expect(stale_page.locator("#results-panel")).to_be_hidden()
+            if stale_page.evaluate("state.report !== null"):
+                raise AssertionError("A delayed report must not replace a changed plan.")
+
+            choose_measure(stale_page, "M7", "nura")
+            stale_page.evaluate("delete document.documentElement.dataset.pendingAnalyze")
+            stale_page.locator("#calculate-button").click()
+            stale_page.locator('html[data-pending-analyze="true"]').wait_for()
+            stale_page.locator("#reset-button").click()
+            stale_page.evaluate("window.releaseAnalyze()")
+            stale_page.wait_for_function("state.loading === false")
+            expect(stale_page.locator(".selection-slot.filled")).to_have_count(0)
+            expect(stale_page.locator("#results-panel")).to_be_hidden()
+            stale_context.close()
 
             mobile = browser.new_page(viewport={"width": 390, "height": 844})
             mobile.on("pageerror", lambda error: page_errors.append(str(error)))

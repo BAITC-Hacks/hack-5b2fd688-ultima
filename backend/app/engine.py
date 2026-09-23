@@ -47,7 +47,7 @@ def _normalise_choices(choices: list[Any]) -> list[dict[str, Any]]:
         if hasattr(choice, "model_dump"):
             normalised.append(choice.model_dump())
         elif isinstance(choice, dict):
-            normalised.append(choice)
+            normalised.append({**choice, "district_id": choice.get("district_id")})
         else:
             normalised.append(
                 {

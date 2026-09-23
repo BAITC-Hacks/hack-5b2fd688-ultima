@@ -146,6 +146,28 @@ function renderHero() {
   $('#hero-score-orb').style.setProperty('--score-angle', `${Math.max(0, Math.min(100, baseline)) * 3.6}deg`);
 }
 
+function renderBaseline() {
+  const { baseline, districts, indicators } = state.config;
+  const scores = new Map(baseline.districts.map((district) => [district.id, district.score_after]));
+  $('#baseline-intro').textContent = `Исходные показатели одинаковы для всех участников. ${baseline.critical_count} ${russianCount(baseline.critical_count, ['показатель', 'показателя', 'показателей'])} ниже порога 40 — раскройте профили, чтобы выбрать приоритеты.`;
+  $('#baseline-scores').innerHTML = districts.map((district) => `
+    <div class="baseline-score-card ${district.id === baseline.weakest_district_id ? 'is-weakest' : ''}">
+      <span>${escapeHtml(district.name)}</span>
+      <strong>${formatScore(scores.get(district.id))}</strong>
+      <small>${Math.round(district.population_share * 100)}% населения${district.id === baseline.weakest_district_id ? ' · слабейший' : ''}</small>
+    </div>`).join('');
+  $('#baseline-profiles').innerHTML = districts.map((district) => `
+    <article class="baseline-profile">
+      <div class="baseline-profile-heading"><h3>${escapeHtml(district.name)}</h3><span>${formatScore(scores.get(district.id))} балла</span></div>
+      <p>${escapeHtml(district.profile)}</p>
+      <dl class="baseline-indicators">${indicators.map((indicator) => {
+        const value = district.indicators[indicator.id];
+        return `<div class="${value < 40 ? 'is-critical' : ''}"><dt><span>${escapeHtml(indicator.id)}</span> ${escapeHtml(indicator.label)}</dt><dd>${value}${value < 40 ? ' <small>ниже 40</small>' : ''}</dd></div>`;
+      }).join('')}</dl>
+    </article>`).join('');
+  $('#baseline-overview').hidden = false;
+}
+
 function renderSelections() {
   const container = $('#selection-slots');
   const labels = ['01', '02', '03', '04', '05'];
@@ -722,6 +744,7 @@ async function init() {
       $('#rules-details').open = false;
     }
     renderHero();
+    renderBaseline();
     $('#workspace').hidden = false;
     $('#comparison-board').hidden = false;
     $('#mobile-dock').hidden = false;

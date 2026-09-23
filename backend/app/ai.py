@@ -9,7 +9,31 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from .engine import DATA, DISTRICTS, INDICATORS
+from .engine import DATA, DISTRICTS, INDICATORS, simulate
+
+
+def _alternative_indicator_differences(
+    report: dict[str, Any], alternative: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Compare two engine reports; never ask the language model to calculate tradeoffs."""
+    candidate = simulate(alternative["selections"])
+    current_values = {
+        (district["id"], indicator["id"]): indicator["after"]
+        for district in report["districts"]
+        for indicator in district["indicators"]
+    }
+    return [
+        {
+            "district": district["name"],
+            "indicator": indicator["label"],
+            "current_after": current_values[(district["id"], indicator["id"])],
+            "alternative_after": indicator["after"],
+            "difference": indicator["after"] - current_values[(district["id"], indicator["id"])],
+        }
+        for district in candidate["districts"]
+        for indicator in district["indicators"]
+        if abs(indicator["after"] - current_values[(district["id"], indicator["id"])]) > 1e-9
+    ]
 
 
 def _fallback_explanation(
@@ -63,11 +87,23 @@ def _fallback_explanation(
         )
 
     if alternatives:
+        compared_indicators = _alternative_indicator_differences(report, alternatives[0])
+        lost_gain = min(
+            (item for item in compared_indicators if item["difference"] < 0),
+            key=lambda item: item["difference"],
+            default=None,
+        )
         recommendations = [
             (
                 f"Проверьте вариант «{alternatives[0]['description']}»: модель даёт "
                 f"Score {alternatives[0]['score']:.2f} ({alternatives[0]['display_score_delta']:+.2f} "
                 "к текущему сценарию). Это альтернативный расчёт, а не применённое решение."
+                + (
+                    f" Компромисс: «{lost_gain['indicator']}» в районе {lost_gain['district']} "
+                    "будет ниже, чем в текущем плане."
+                    if lost_gain
+                    else ""
+                )
             )
         ]
     else:
@@ -120,7 +156,16 @@ def _facts_for_model(
         "score_delta_exact": report["score_delta"],
         "score_delta_display": report["display_score_delta"],
         "city_average": report["city_average"],
+        "baseline_city_average": report["baseline_city_average"],
         "weakest_district": report["weakest_district_name"],
+        "weakest_district_score": report["weakest_district_score"],
+        "score_components": {
+            "population_weighted_average": report["city_average"],
+            "average_coefficient": 0.7,
+            "weakest_district_score": report["weakest_district_score"],
+            "weakest_coefficient": 0.3,
+            "critical_penalty_per_indicator": 1,
+        },
         "critical_count": report["critical_count"],
         "critical_indicators": report["critical_indicators"],
         "selected_measures": report["selected_measures"],
@@ -146,9 +191,14 @@ def _facts_for_model(
         "synergies": report["applied_synergies"],
         "measure_effects": [
             {
+                "source_id": effect["source_id"],
                 "source": effect["source_name"],
+                "district_id": effect["district_id"],
                 "district": DISTRICTS[effect["district_id"]]["name"],
+                "indicator_id": effect["indicator_id"],
                 "indicator": INDICATORS[effect["indicator_id"]]["label"],
+                "full_effect": effect["full_effect"],
+                "lag_share": effect["lag_share"],
                 "realised_effect_before_clipping": effect["realised_effect"],
                 "is_synergy": effect.get("is_synergy", False),
             }
@@ -169,6 +219,9 @@ def _facts_for_model(
                 "total_cost": item["total_cost"],
                 "critical_count": item["critical_count"],
                 "weakest_district": item["weakest_district_name"],
+                "indicator_differences_from_current_plan": _alternative_indicator_differences(
+                    report, item
+                ),
             }
             for item in alternatives
         ],
@@ -188,6 +241,11 @@ def _normalise_model_response(content: str) -> dict[str, Any]:
         for field in fields[1:]
     ):
         raise ValueError("AI response contains fields with an invalid type")
+    if not parsed["summary"].strip() or any(
+        not parsed[field] or any(not item.strip() for item in parsed[field])
+        for field in fields[1:]
+    ):
+        raise ValueError("AI response contains an empty analysis")
     # All displayed numbers come from the deterministic report, never from free-form AI prose.
     prose = [parsed["summary"], *(text for field in fields[1:] for text in parsed[field])]
     if any(re.search(r"\d", text) for text in prose):
@@ -227,10 +285,12 @@ def explain(
         "не является аддитивным из-за слабейшего района, порога критичности и синергий. "
         "Все подтверждённые числа интерфейс показывает отдельно из расчётного ядра. "
         "Не предлагай конкретные замены от себя. Если используешь precalculated_alternatives, "
-        "объясни словами их компромиссы, не называя цифры, коды и новые Score. "
+        "объясни словами подтверждённые indicator_differences_from_current_plan: "
+        "что улучшилось и от чего пришлось отказаться, не называя цифры, коды и новые Score. "
         "Это альтернативы, которые ещё не применены. "
         "Верни только JSON с полями summary (строка), strengths (массив строк), risks "
         "(массив строк), consequences (массив строк), recommendations (массив строк). "
+        "Все текстовые поля и массивы должны содержать непустые содержательные ответы. "
         "В consequences опиши возможные последствия на модельном горизонте. Если готовых альтернатив нет, "
         "сообщи об этом без выдуманных вариантов."
     )
