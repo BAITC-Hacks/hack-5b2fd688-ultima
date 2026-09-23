@@ -5,16 +5,16 @@
   "required_selections": 5,
   "max_per_direction": 2,
   "indicators": [
-    {"id": "T1", "label": "Разгрузка дорог", "direction": "transport", "direction_label": "Транспорт", "description": "Насколько свободны дороги в час пик", "weight": 0.10},
-    {"id": "T2", "label": "Общественный транспорт", "direction": "transport", "direction_label": "Транспорт", "description": "Доступность остановок и частота движения", "weight": 0.10},
-    {"id": "E1", "label": "Озеленение", "direction": "ecology", "direction_label": "Экология и озеленение", "description": "Доступность зелёных зон для жителей", "weight": 0.09},
-    {"id": "E2", "label": "Качество воздуха", "direction": "ecology", "direction_label": "Экология и озеленение", "description": "Чем выше показатель, тем чище воздух", "weight": 0.11},
-    {"id": "S1", "label": "Школы и детсады", "direction": "social", "direction_label": "Социальная сфера", "description": "Обеспеченность местами в школах и детсадах", "weight": 0.11},
-    {"id": "S2", "label": "Поликлиники", "direction": "social", "direction_label": "Социальная сфера", "description": "Доступность первичной медицинской помощи", "weight": 0.11},
-    {"id": "B1", "label": "Безопасность улиц", "direction": "safety", "direction_label": "Безопасность", "description": "Освещение, камеры и безопасность улиц", "weight": 0.09},
-    {"id": "B2", "label": "Безопасность движения", "direction": "safety", "direction_label": "Безопасность", "description": "Безопасность дорожного движения", "weight": 0.09},
-    {"id": "C1", "label": "Надёжность ЖКХ", "direction": "services", "direction_label": "Городские сервисы", "description": "Надёжность теплоснабжения и водоснабжения", "weight": 0.10},
-    {"id": "C2", "label": "Ответы на обращения", "direction": "services", "direction_label": "Городские сервисы", "description": "Скорость решения обращений жителей", "weight": 0.10}
+    {"id": "T1", "label": "Разгрузка дорог", "direction": "transport", "direction_label": "Транспорт", "description": "100 = нет пробок в час пик, 0 = стоит всё", "weight": 0.10},
+    {"id": "T2", "label": "Общественный транспорт", "direction": "transport", "direction_label": "Транспорт", "description": "100 = все жители в 500 м от остановки с интервалом ≤10 мин", "weight": 0.10},
+    {"id": "E1", "label": "Озеленение", "direction": "ecology", "direction_label": "Экология и озеленение", "description": "100 = ≥20 м² зелени на жителя", "weight": 0.09},
+    {"id": "E2", "label": "Качество воздуха", "direction": "ecology", "direction_label": "Экология и озеленение", "description": "100 = зимой AQI ≤50, 0 = хронический смог", "weight": 0.11},
+    {"id": "S1", "label": "Школы и детсады", "direction": "social", "direction_label": "Социальная сфера", "description": "100 = 100% нормативной потребности, без 2-й смены", "weight": 0.11},
+    {"id": "S2", "label": "Поликлиники", "direction": "social", "direction_label": "Социальная сфера", "description": "100 = норматив на жителя выполнен полностью", "weight": 0.11},
+    {"id": "B1", "label": "Безопасность улиц", "direction": "safety", "direction_label": "Безопасность", "description": "100 = освещение и камеры везде, минимум происшествий", "weight": 0.09},
+    {"id": "B2", "label": "Безопасность движения", "direction": "safety", "direction_label": "Безопасность", "description": "100 = минимум ДТП с пострадавшими", "weight": 0.09},
+    {"id": "C1", "label": "Надёжность ЖКХ", "direction": "services", "direction_label": "Городские сервисы", "description": "100 = нет аварий отопления/воды за год", "weight": 0.10},
+    {"id": "C2", "label": "Ответы на обращения", "direction": "services", "direction_label": "Городские сервисы", "description": "100 = все обращения закрыты в срок", "weight": 0.10}
   ],
   "districts": [
     {"id": "esil", "name": "Есиль", "population_share": 0.27, "profile": "Высокие показатели, но есть пробки на мостах и переполненные школы.", "indicators": {"T1": 45, "T2": 62, "E1": 68, "E2": 72, "S1": 48, "S2": 55, "B1": 78, "B2": 60, "C1": 75, "C2": 70}},

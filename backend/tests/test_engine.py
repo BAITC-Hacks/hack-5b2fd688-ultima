@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from copy import deepcopy
+
 import pytest
 
 from backend.app.engine import (
@@ -295,3 +297,67 @@ def test_partial_selection_rejects_unknown_measure() -> None:
 
     assert result["valid"] is False
     assert any("неизвестное мероприятие" in error for error in result["errors"])
+
+
+@pytest.mark.parametrize("district_id", [["nura"], {"id": "nura"}, [], {}, 1, False])
+def test_direct_engine_rejects_invalid_district_types_without_crashing(district_id) -> None:
+    selections = [{"measure_id": "M7", "district_id": district_id}, *REFERENCE_SCENARIO[1:]]
+
+    validation = validate_choices(selections, require_five=True)
+
+    assert validation["valid"] is False
+    assert any("района должен быть строкой" in error for error in validation["errors"])
+    with pytest.raises(ValueError, match="района должен быть строкой"):
+        simulate(selections)
+
+
+def test_clip_bounds_include_synergy_and_keep_preclip_attribution(monkeypatch) -> None:
+    districts = deepcopy(DISTRICTS)
+    districts["nura"]["indicators"].update({"B1": 89, "T1": 1})
+    monkeypatch.setattr("backend.app.engine.DISTRICTS", districts)
+    report = simulate([
+        {"measure_id": "M7", "district_id": "nura"},
+        {"measure_id": "M8", "district_id": "nura"},
+        {"measure_id": "M10", "district_id": "nura"},
+        {"measure_id": "M11", "district_id": "nura"},
+        {"measure_id": "M12"},
+    ])
+    indicators = {
+        indicator["id"]: indicator
+        for district in report["districts"] if district["id"] == "nura"
+        for indicator in district["indicators"]
+    }
+
+    # B1: 89 + 10.5 from M10 + 2 from synergy = 101.5, then clipped.
+    assert indicators["B1"]["after"] == 100
+    assert indicators["B1"]["delta"] == 11
+    assert sum(item["amount"] for item in indicators["B1"]["contributions"]) == 12.5
+    # T1: 1 - 1.75 from M11 is clipped at the lower boundary.
+    assert indicators["T1"]["after"] == 0
+    assert indicators["T1"]["delta"] == -1
+    assert DISTRICTS["nura"]["indicators"]["B1"] == 55
+    assert DISTRICTS["nura"]["indicators"]["T1"] == 55
+
+
+def test_clip_happens_after_summing_opposing_effects_in_either_order(monkeypatch) -> None:
+    districts = deepcopy(DISTRICTS)
+    districts["nura"]["indicators"]["T1"] = 99
+    monkeypatch.setattr("backend.app.engine.DISTRICTS", districts)
+    selections = [
+        {"measure_id": "M2"},
+        {"measure_id": "M11", "district_id": "nura"},
+        {"measure_id": "M9", "district_id": "nura"},
+        {"measure_id": "M10", "district_id": "nura"},
+        {"measure_id": "M12"},
+    ]
+    reports = [simulate(selections), simulate(list(reversed(selections)))]
+
+    for report in reports:
+        t1 = next(
+            indicator
+            for district in report["districts"] if district["id"] == "nura"
+            for indicator in district["indicators"] if indicator["id"] == "T1"
+        )
+        # 99 + 3 - 1.75 = 100.25 -> 100; early clipping would produce 98.25.
+        assert t1["after"] == 100
+    assert reports[0]["score"] == reports[1]["score"]

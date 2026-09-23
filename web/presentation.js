@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  // Keep all report and team text in HTML text nodes; the exported document has no scripts.
+  // Keep report and team text in escaped text nodes; only the print button is interactive.
   function escapeHtml(value) {
     return String(value ?? '')
       .replace(/([\uD800-\uDBFF])([\uDC00-\uDFFF])|[\uD800-\uDFFF]|\u0000/g, (match, high, low) => high ? high + low : '\uFFFD')
@@ -28,10 +28,18 @@
     return `${rounded > 0 ? '+' : rounded < 0 ? '−' : ''}${formatNumber(Math.abs(rounded), digits)}`;
   }
 
+  function excerpt(value, limit = 120) {
+    const characters = Array.from(String(value ?? '').replace(/\s+/g, ' ').trim());
+    if (characters.length <= limit) return characters.join('');
+    const shortened = characters.slice(0, limit - 1).join('');
+    const lastSpace = shortened.lastIndexOf(' ');
+    return `${lastSpace > limit * 0.6 ? shortened.slice(0, lastSpace) : shortened}…`;
+  }
+
   function listOrFallback(value, fallback) {
     const items = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
     const nonempty = items.filter((item) => typeof item === 'string' && item.trim());
-    return (nonempty.length ? nonempty : fallback).slice(0, 3);
+    return (nonempty.length ? nonempty : fallback).slice(0, 2).map((text) => excerpt(text));
   }
 
   function renderList(items) {
@@ -54,7 +62,7 @@
     const remaining = numberOrNull(data.budget_remaining) ?? (spent !== null && budget !== null ? budget - spent : null);
     const spentPercent = spent !== null && budget !== null && budget > 0
       ? Math.max(0, Math.min(100, spent / budget * 100)) : 0;
-    const team = String(teamName ?? '').trim();
+    const team = excerpt(teamName, 80);
 
     const choicesHtml = measures.length ? measures.map((measure, index) => {
       const location = measure.type === 'city' ? 'Весь город' : measure.district_name || 'Район не указан';
@@ -120,7 +128,7 @@
     const criticalExamples = critical.slice(0, 2).map((item) =>
       `${item.indicator_label || item.indicator_id} — ${item.district_name || 'район не указан'} (${formatNumber(item.value, 1)})`
     ).join('; ');
-    const consequenceItems = [
+    const consequenceItems = listOrFallback(explanation.consequences, [
       `Самый слабый район после изменений: ${data.weakest_district_name || 'не указан'}.`,
       critical.length
         ? `Критических показателей (ниже 40): ${formatNumber(data.critical_count ?? critical.length)}. ${criticalExamples}${critical.length > 2 ? ' и другие.' : '.'}`
@@ -128,7 +136,7 @@
       synergies.length
         ? `Синергия мер: ${synergies.slice(0, 2).map((item) => `${Array.isArray(item.measures) ? item.measures.join(' + ') : 'меры'} — ${item.description || 'дополнительный эффект'}`).join('; ')}${synergies.length > 2 ? ' и другие.' : '.'}`
         : 'Дополнительная синергия выбранных мер не сработала.',
-    ];
+    ]);
 
     return `<!doctype html>
 <html lang="ru">
@@ -137,14 +145,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Пять решений — презентация сценария</title>
   <style>
-    :root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #1b342e; background: #e9eee6; }
+    :root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #192338; background: #edf1f9; }
     * { box-sizing: border-box; }
     body { margin: 0; padding: 28px 16px 44px; }
     button { font: inherit; }
     .toolbar { max-width: 1120px; margin: 0 auto 18px; display: flex; justify-content: space-between; align-items: center; gap: 16px; color: #43584d; font-size: 14px; }
-    .print-button { border: 0; border-radius: 12px; background: #1b342e; color: white; padding: 12px 18px; font-weight: 700; cursor: pointer; }
-    .print-button:hover, .print-button:focus-visible { background: #315c48; }
-    .print-button:focus-visible { outline: 3px solid #93b871; outline-offset: 3px; }
+    .print-button { border: 0; border-radius: 12px; background: #315cf5; color: white; padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .print-button:hover, .print-button:focus-visible { background: #234ad5; }
+    .print-button:focus-visible { outline: 3px solid #8aa3fa; outline-offset: 3px; }
     .deck { max-width: 1120px; margin: auto; display: grid; gap: 22px; }
     .slide { min-width: 0; min-height: 650px; background: #fcfdf9; border-radius: 24px; padding: 42px 48px 34px; box-shadow: 0 14px 45px #17302718; display: flex; flex-direction: column; gap: 20px; overflow-wrap: anywhere; }
     .slide-top, .slide-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -156,7 +164,7 @@
     h1, h2, h3, p { margin: 0; }
     h1, h2 { letter-spacing: -.045em; line-height: 1.08; }
     h1 { font-size: clamp(34px, 5vw, 56px); }
-    h1 em { font-style: normal; color: #538166; }
+    h1 em { font-style: normal; color: #315cf5; }
     h2 { font-size: clamp(30px, 4vw, 44px); }
     h3 { font-size: 17px; letter-spacing: -.02em; }
     .intro-header { display: flex; justify-content: space-between; align-items: end; gap: 24px; }
@@ -165,7 +173,7 @@
     .team strong { display: block; font-size: 16px; }
     .hero-stats { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; }
     .score-card, .budget-card { border-radius: 18px; padding: 22px 25px; }
-    .score-card { background: #1b342e; color: white; }
+    .score-card { background: #192c53; color: white; }
     .budget-card { background: #edf2e8; }
     .kicker { color: #779d83; }
     .budget-card .kicker { color: #557664; }
@@ -210,14 +218,15 @@
     .empty { grid-column: 1 / -1; color: #6b7d70; padding: 14px; }
     .summary { max-width: 90ch; line-height: 1.5; color: #40594a; font-size: 15px; white-space: pre-line; }
     .insights { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .insight-card { background: #edf2e8; border-radius: 16px; padding: 19px 21px; }
+    .insight-card { background: #edf2fa; border-radius: 16px; padding: 19px 21px; }
     .insight-card.risks { background: #f7f0e9; }
     .insight-card h3 { margin-bottom: 10px; }
     .insight-card ul, .consequences ul, .recommendations ul { margin: 0; padding-left: 19px; line-height: 1.42; font-size: 13px; }
     li + li { margin-top: 6px; }
-    .consequences { border-top: 1px solid #dce5da; padding-top: 15px; }
+    .consequences { background: #f1f4fc; }
     .consequences h3, .recommendations h3 { margin-bottom: 9px; }
-    .recommendations { border-left: 4px solid #8cb76d; padding: 12px 18px; background: #f1f6e8; border-radius: 0 12px 12px 0; }
+    .recommendations { background: #edf6f0; }
+    .excerpt-note { font-size: 11px; color: #75839a; }
     .disclaimer { color: #566b5b; max-width: 84ch; line-height: 1.4; }
     @media (max-width: 680px) {
       body { padding: 12px 10px 28px; }
@@ -244,6 +253,8 @@
       .district-table th, .district-table td { padding: 10px 12px; }
       .change-card { padding: 11px 14px; }
       .insight-card { padding: 13px 17px; }
+      .insight-card ul { font-size: 12px; line-height: 1.35; }
+      .summary { font-size: 14px; line-height: 1.45; }
     }
   </style>
 </head>
@@ -272,10 +283,11 @@
     <section class="slide" aria-labelledby="slide-three-title">
       <div class="slide-top"><p class="eyebrow">Выводы сценария</p><span class="page-number">03 / 03</span></div>
       <header><h2 id="slide-three-title">Что означает результат</h2><p class="subtitle">Сильные стороны, риски и следующие шаги</p></header>
-      <p class="summary">${escapeHtml(summary)}</p>
-      <div class="insights"><section class="insight-card" aria-labelledby="strengths-title"><h3 id="strengths-title">Сильные стороны</h3>${renderList(strengths)}</section><section class="insight-card risks" aria-labelledby="risks-title"><h3 id="risks-title">Риски и компромиссы</h3>${renderList(risks)}</section></div>
-      <section class="consequences" aria-labelledby="consequences-title"><h3 id="consequences-title">Последствия выбранных мер</h3>${renderList(consequenceItems)}</section>
-      <section class="recommendations" aria-labelledby="recommendations-title"><h3 id="recommendations-title">Рекомендации для следующего сценария</h3>${renderList(recommendations)}</section>
+        <p class="summary">${escapeHtml(excerpt(summary, 200))}</p>
+       <div class="insights"><section class="insight-card" aria-labelledby="strengths-title"><h3 id="strengths-title">Сильные стороны</h3>${renderList(strengths)}</section><section class="insight-card risks" aria-labelledby="risks-title"><h3 id="risks-title">Риски и компромиссы</h3>${renderList(risks)}</section>
+       <section class="insight-card consequences" aria-labelledby="consequences-title"><h3 id="consequences-title">Последствия выбранных мер</h3>${renderList(consequenceItems)}</section>
+       <section class="insight-card recommendations" aria-labelledby="recommendations-title"><h3 id="recommendations-title">Следующий сценарий</h3>${renderList(recommendations)}</section></div>
+       <p class="excerpt-note">Краткий разбор: до двух сокращённых пунктов в разделе. Полный анализ — в симуляторе.</p>
       <div class="slide-bottom"><span class="disclaimer">Все данные, показатели и эффекты мер синтетические. Это демонстрационный модельный сценарий, а не официальный прогноз города.</span><span>Выводы / 03</span></div>
     </section>
   </main>

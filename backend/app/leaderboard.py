@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import sqlite3
+import unicodedata
 from contextlib import closing
 from datetime import datetime, timezone
 from hashlib import sha256
@@ -19,6 +21,34 @@ DEFAULT_DB = Path(__file__).resolve().parents[1] / "data" / "scenarios.sqlite3"
 
 class TeamNameTakenError(Exception):
     """A different owner already registered this team name."""
+
+
+def normalise_team_name(team_name: str) -> str:
+    """Apply the same canonical name and validation for HTTP and direct callers."""
+    if not isinstance(team_name, str):
+        raise ValueError("Имя команды должно быть строкой.")  # noqa: TRY004 - shared Pydantic validation contract
+    # Check before splitting: Python treats some control characters as whitespace.
+    if any(
+        not character.isprintable() and unicodedata.category(character) != "Zs"
+        for character in team_name
+    ):
+        raise ValueError("Имя команды не должно содержать управляющие или невидимые символы.")
+    normalized = " ".join(unicodedata.normalize("NFC", team_name).split())
+    if not 1 <= len(normalized) <= 40:
+        raise ValueError("Имя команды должно содержать от 1 до 40 символов после нормализации.")
+    if not any(unicodedata.category(character)[0] in "LNPS" for character in normalized):
+        raise ValueError("Имя команды должно содержать видимые символы.")
+    return normalized
+
+
+def validate_owner_token(owner_token: str | None) -> str | None:
+    """Accept only the URL-safe alphabet used by token_urlsafe, or no token."""
+    if owner_token is not None and (
+        not isinstance(owner_token, str)
+        or re.fullmatch(r"[A-Za-z0-9_-]{20,100}", owner_token) is None
+    ):
+        raise ValueError("Код команды должен содержать от 20 до 100 символов: A–Z, a–z, 0–9, _ или -.")
+    return owner_token
 
 
 def _database_path() -> Path:
@@ -70,7 +100,8 @@ def submit_scenario(
     owner_token: str | None = None,
 ) -> dict[str, Any]:
     """Insert/update one team row, guarded by its private per-team edit token."""
-    normalized_name = " ".join(team_name.split())
+    normalized_name = normalise_team_name(team_name)
+    owner_token = validate_owner_token(owner_token)
     team_key = normalized_name.casefold()
     district_scores = {
         district["id"]: district["score_after"] for district in report["districts"]

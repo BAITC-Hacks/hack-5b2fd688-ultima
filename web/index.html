@@ -3,254 +3,122 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f3f3ec" />
-    <meta
-      name="description"
-      content="Симулятор городских решений: распределите бюджет и посмотрите, как изменится качество жизни в районах."
-    />
-    <title>Аким на 5 часов — симулятор городских решений</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%231b342e'/%3E%3Cpath d='M9 27 17 12h6l8 15h-7l-4-9-4 9z' fill='%23d9f17d'/%3E%3C/svg%3E" />
+    <meta name="theme-color" content="#f6f7fb" />
+    <meta name="description" content="Аким на 5 часов: изучите районы, выберите пять городских решений и оцените их влияние на качество жизни." />
+    <title>Аким на 5 часов — лаборатория городских решений</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%232d5bff'/%3E%3Cpath d='m10 29 10-19 10 19M14 23h12' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/styles.css" />
     <script src="/presentation.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Перейти к симулятору</a>
-    <header class="site-header">
-      <div class="header-inner">
-        <a class="brand" href="#top" aria-label="Аким на 5 часов — на главную">
-          <span class="brand-mark" aria-hidden="true">А</span>
-          <span class="brand-copy">
-            <strong>ГОРОДСКАЯ ЛАБОРАТОРИЯ</strong>
-            <span>Аким на 5 часов</span>
-          </span>
-        </a>
-        <nav class="header-nav" aria-label="Разделы симулятора">
-          <a href="#decisions-title">Собрать план</a>
-          <a href="#comparison-title">Результаты команд</a>
-        </nav>
-        <div class="header-right">
-          <span class="model-tag"><span class="live-dot"></span> СИМУЛЯЦИЯ · 2 ГОДА</span>
-          <button class="text-button" id="reset-button" type="button" title="Сбросить выбранные решения">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6.5A7 7 0 1 1 3 11M3.5 3.5v3h3" /></svg>
-            Сбросить
-          </button>
-        </div>
-      </div>
-    </header>
+    <aside class="app-sidebar" aria-label="Навигация">
+      <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true">А<span>·</span></span><span class="brand-copy"><strong>Аким<span>на 5 часов</span></strong><small>ГОРОДСКАЯ ЛАБОРАТОРИЯ</small></span></a>
+      <span class="nav-label">ВАШЕ РАБОЧЕЕ ПРОСТРАНСТВО</span>
+      <nav class="main-nav">
+        <a href="#top" class="nav-link active" data-nav="top" aria-current="location"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10 12 3l9 7v11h-7v-7h-4v7H3z"/></svg><span>Обзор города</span></a>
+        <a href="#workspace" class="nav-link" data-nav="workspace"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6v4H9zM8 12h8M8 16h5"/></svg><span>Собрать план</span><small id="nav-plan-count">0/5</small></a>
+        <a href="#results-panel" class="nav-link" data-nav="results-panel" id="results-nav" aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V4M4 20h17M8 16v-5M13 16V7M18 16V3"/></svg><span>Результат</span></a>
+        <a href="#comparison-board" class="nav-link" data-nav="comparison-board"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 4v3"/></svg><span>Команды</span></a>
+      </nav>
+      <div class="sidebar-note"><span class="spark" aria-hidden="true">✳</span><strong>Маленькие решения.<br />Большие изменения.</strong><p>Исследуйте, как пять инициатив могут изменить жизнь города.</p><span class="model-pill">Синтетическая модель</span></div>
+      <div class="sidebar-footer"><span class="team-avatar">U</span><div><strong>Ultima</strong><span>HackAlem AI · 2026</span></div><span aria-hidden="true">↗</span></div>
+    </aside>
 
-    <main class="page-shell" id="main-content">
-      <section class="hero" id="top" aria-labelledby="hero-title">
-        <div class="hero-orbit hero-orbit-one"></div>
-        <div class="hero-orbit hero-orbit-two"></div>
-        <div class="hero-copy">
-          <div class="eyebrow hero-eyebrow"><span class="eyebrow-line"></span> ИНТЕРАКТИВНАЯ ГОРОДСКАЯ СТРАТЕГИЯ</div>
-          <h1 id="hero-title">Пять решений.<br /><span>Один город.</span></h1>
-          <p>Выберите пять инициатив с фиксированной стоимостью и посмотрите, как ваши решения изменят качество жизни в районах.</p>
-          <div class="hero-metrics" aria-label="Правила симуляции"><span><strong>05</strong> решений</span><span><strong>100</strong> единиц бюджета</span><span><strong>08</strong> кварталов</span></div>
-        </div>
-        <svg class="hero-skyline" viewBox="0 0 560 280" aria-hidden="true" focusable="false">
-          <defs><linearGradient id="tower-fill" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#a5d693" stop-opacity=".23"/><stop offset="1" stop-color="#a5d693" stop-opacity=".025"/></linearGradient></defs>
-          <path d="M0 264h560M14 264V168l26-23 26 23v96M83 264V122h35v142M136 264V185h41v79M192 264V105h21v159M204 105V83M190 82h28M230 264V152h44v112M292 264V188h32v76M339 264V137h48v127M403 264V97h28v167M417 97V70M448 264V167h36v97M498 264V129h38v135" fill="none" stroke="#b8d9b3" stroke-width="2" stroke-opacity=".42"/>
-          <path d="M83 264V122h35v142M230 264V152h44v112M339 264V137h48v127M403 264V97h28v167M498 264V129h38v135" fill="url(#tower-fill)"/>
-          <path d="M24 194h13m-13 22h13m65-68h-8m0 26h8m44 31h15m0 22h-15m100-53h14m-14 25h14m93-40h14m-14 26h14m58-61h10m-10 23h10m84-21h10m-10 24h10" stroke="#d9f17d" stroke-width="2" stroke-linecap="round" stroke-opacity=".45"/>
-          <circle cx="205" cy="62" r="10" fill="none" stroke="#d9f17d" stroke-opacity=".62" stroke-width="2"/><circle cx="205" cy="62" r="3" fill="#d9f17d" fill-opacity=".52"/>
-        </svg>
-        <div class="hero-score-block">
-          <div class="score-orb" id="hero-score-orb" aria-label="Базовый Astana Quality of Life Score">
-            <div class="score-orb-inner">
-              <span class="score-orb-label">БАЗОВЫЙ SCORE</span>
-              <strong id="hero-baseline">—</strong>
-              <span class="score-orb-unit">из 100</span>
-            </div>
+    <div class="app-main">
+      <header class="topbar">
+        <div class="breadcrumb"><a href="#top">Городская лаборатория</a><span>/</span><strong>Симулятор Астаны</strong></div>
+        <div class="topbar-actions"><span class="session-tag"><i></i> Новый сценарий</span><button class="text-button" id="reset-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9a8 8 0 1 1 0 7M4 4v5h5"/></svg>Сбросить</button></div>
+      </header>
+
+      <main class="page-shell" id="main-content">
+        <section class="hero" id="top" aria-labelledby="hero-title">
+          <div class="hero-copy"><span class="eyebrow"><span></span> ГОРОД НАЧИНАЕТСЯ С РЕШЕНИЙ</span><h1 id="hero-title">Сегодня вы — <em>аким.</em></h1><p>Пять решений. Сто единиц бюджета. Какой станет Астана?<br />Выберите инициативы и узнайте, что изменится в районах.</p><a class="hero-link" href="#workspace">Собрать план действий <span aria-hidden="true">↗</span></a></div>
+          <div class="city-illustration" aria-hidden="true">
+            <svg viewBox="0 0 420 220" focusable="false">
+              <defs><pattern id="city-grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="#e4e9f6" stroke-width="1"/></pattern></defs>
+              <rect width="420" height="220" rx="20" fill="url(#city-grid)"/>
+              <ellipse cx="225" cy="179" rx="157" ry="24" fill="#e5eafb"/>
+              <path d="m54 171 168-71 157 62-162 54z" fill="#edf1ff" stroke="#cbd6f7"/>
+              <path d="m140 174 104-45M195 192l104-45M92 156l160 61" stroke="white" stroke-width="9"/>
+              <path d="m90 149 32-14v-65L90 84z" fill="#b9caff"/><path d="m122 135 24 11V81L122 70z" fill="#86a2f5"/><path d="m90 84 32-14 24 11-33 14z" fill="#e2e9ff"/>
+              <path d="m98 91 15-6m-15 18 15-6m-15 18 15-6m-15 18 15-6" stroke="#f5f7ff" stroke-width="3"/>
+              <path d="m276 157 37-16V89l-37 16z" fill="#a5baff"/><path d="m313 141 23 10V99l-23-10z" fill="#7292ec"/><path d="m276 105 37-16 23 10-37 16z" fill="#d5e0ff"/>
+              <path d="m284 112 20-9m-20 21 20-9m-20 21 20-9" stroke="#eef3ff" stroke-width="3"/>
+              <path d="m169 163 27-12v-35l-27 12z" fill="#c5d3fa"/><path d="m196 151 24 10v-35l-24-10z" fill="#a2b9f5"/><path d="m169 128 27-12 24 10-27 12z" fill="#eef2ff"/>
+              <path d="m230 153 13-6-5-74-9 4z" fill="#7c9aef"/><path d="m230 153-11-5 5-75 5 4z" fill="#bfd0ff"/>
+              <circle cx="231" cy="59" r="23" fill="#e7bd60"/><path d="M210 60a23 23 0 0 0 41 12 23 23 0 0 1-41-12" fill="#c99a46"/><path d="m215 50 15-11 15 13-15 9z" fill="#fbe3a2"/>
+              <path d="M74 159v16m274-10v16m-92 3v15" stroke="#719989" stroke-width="3"/>
+              <ellipse cx="74" cy="153" rx="12" ry="17" fill="#9dcebd"/><ellipse cx="348" cy="158" rx="12" ry="17" fill="#9dcebd"/><ellipse cx="256" cy="180" rx="10" ry="14" fill="#83baa7"/>
+            </svg><span class="city-label"><i></i> АСТАНА · 5 РАЙОНОВ</span>
           </div>
-          <div class="hero-score-caption">
-            <span class="hero-caption-dot"></span>
-            <span>СТАРТОВАЯ ТОЧКА<br /><strong>5 РАЙОНОВ · ЕДИНЫЕ ДАННЫЕ</strong></span>
+        </section>
+
+        <div class="overview-stats" aria-label="Исходные условия">
+          <div class="overview-stat score-stat"><span>Качество жизни сейчас <span aria-hidden="true">↗</span></span><div><strong id="hero-baseline">—</strong><small>/ 100</small></div><p>Astana Quality of Life Score</p></div>
+          <div class="overview-stat"><span>Ваш бюджет <span class="stat-icon" aria-hidden="true">₸</span></span><div><strong>100</strong><small>усл. единиц</small></div><p>Фиксированная стоимость каждой меры</p></div>
+          <div class="overview-stat"><span>Горизонт решений <span class="stat-icon" aria-hidden="true">◷</span></span><div><strong>2</strong><small>условных года</small></div><p>8 кварталов с учётом лага</p></div>
+          <div class="overview-stat critical-stat"><span>Требуют внимания <span class="stat-icon" aria-hidden="true">!</span></span><div><strong id="baseline-critical-count">—</strong><small>показателя</small></div><p id="baseline-critical-caption">Значения ниже критического порога 40</p></div>
+        </div>
+
+        <section class="baseline-overview" id="baseline-overview" aria-labelledby="baseline-title" hidden>
+          <div class="section-heading"><div><span class="eyebrow">01 / ИЗУЧИТЕ СТАРТОВЫЕ УСЛОВИЯ</span><h2 id="baseline-title">Один город. Разные приоритеты.</h2></div><span class="section-hint">Выберите район, чтобы узнать больше <span aria-hidden="true">↓</span></span></div>
+          <p class="screen-reader-only" id="baseline-intro"></p>
+          <div class="baseline-scores" id="baseline-scores"></div>
+          <details class="baseline-details"><summary>Показатели и профили районов <span aria-hidden="true">＋</span></summary><div class="baseline-profiles" id="baseline-profiles"></div><p class="scale-note">Все показатели: 0–100, чем выше — тем лучше. Выделены значения строго ниже 40. Данные синтетические.</p></details>
+        </section>
+
+        <div id="app-error" class="app-error" role="alert" hidden><strong>Не удалось загрузить симулятор.</strong><span id="app-error-message">Проверьте соединение с сервером и обновите страницу.</span></div>
+        <noscript><p class="app-error">Для выбора инициатив и расчёта включите JavaScript в браузере.</p></noscript>
+
+        <section class="planning-section" aria-labelledby="planning-title">
+          <div class="section-heading"><div><span class="eyebrow">02 / ПЕРЕЙДИТЕ ОТ ПРОБЛЕМ К РЕШЕНИЯМ</span><h2 id="planning-title">Соберите план действий</h2></div><span class="step-counter" id="step-label">0 из 5 решений</span></div>
+          <div class="example-scenario" id="example-scenario" hidden>
+            <div class="example-top"><div><span class="eyebrow">БЫСТРЫЙ СТАРТ</span><h3 id="example-title"></h3><p id="example-description"></p></div><button class="outline-button" id="load-example-button" type="button">Загрузить пример ↗</button></div>
+            <details id="example-rationale"><summary>Почему выбраны эти решения?</summary><ol id="example-reasons"></ol><p id="example-expected"></p></details>
           </div>
-        </div>
-      </section>
-
-      <section class="baseline-overview panel" id="baseline-overview" aria-labelledby="baseline-title" hidden>
-        <div class="baseline-heading">
-          <div><span class="panel-kicker">СНАЧАЛА ИЗУЧИТЕ ГОРОД</span><h2 id="baseline-title">Районы до ваших решений</h2></div>
-          <span class="baseline-disclaimer">СИНТЕТИЧЕСКИЕ ДАННЫЕ</span>
-        </div>
-        <p class="baseline-intro" id="baseline-intro"></p>
-        <div class="baseline-scores" id="baseline-scores"></div>
-        <details class="baseline-details">
-          <summary>Посмотреть все показатели и профили районов <span aria-hidden="true">⌄</span></summary>
-          <div class="baseline-profiles" id="baseline-profiles"></div>
-        </details>
-      </section>
-
-      <div class="section-heading">
-        <div>
-          <div class="eyebrow"><span class="eyebrow-line"></span> ИНТЕРАКТИВНЫЙ СЦЕНАРИЙ</div>
-          <h2>Соберите план действий</h2>
-          <p class="section-subtitle">Добавляйте мероприятия, выбирайте районы и следите за общим бюджетом.</p>
-          <a class="section-jump" href="#catalog-title">Перейти к выбору инициатив <span aria-hidden="true">↘</span></a>
-        </div>
-        <div class="step-counter"><span class="step-counter-dot"></span> <span id="step-label">0 из 5 решений</span></div>
-      </div>
-
-      <div id="app-error" class="app-error" role="alert" hidden>
-        <strong>Не удалось загрузить симулятор.</strong>
-        <span id="app-error-message">Проверьте, что сервер запущен, и обновите страницу.</span>
-      </div>
-
-      <div class="workspace" id="workspace" hidden>
-        <div class="workspace-main">
-          <section class="panel decisions-panel" aria-labelledby="decisions-title">
-            <div class="panel-heading">
-              <div>
-                <span class="panel-kicker">ВАШ ПЛАН</span>
-                <h3 id="decisions-title">Пять городских решений</h3>
+          <div class="workspace" id="workspace" hidden>
+            <aside class="workspace-aside" aria-label="Ваш план и бюджет">
+              <div class="plan-panel">
+                <section class="budget-card" aria-label="Бюджет плана"><div class="aside-card-top"><span>Бюджет вашего плана</span><span class="budget-lock">ЛИМИТ 100</span></div><div class="budget-number"><strong id="budget-spent">0</strong><span>/ <span id="budget-total">100</span></span></div><div class="budget-track" role="progressbar" aria-label="Потрачено бюджета" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="budget-progress"></span></div><div class="budget-remaining-row"><span>Доступно для решений</span><strong><span id="budget-remaining">100</span> ед.</strong></div></section>
+                <details class="plan-choices" id="plan-choices" open><summary><span id="decisions-title">Ваши решения</span><span id="selection-count">0 <span>/ 5</span></span></summary><div class="selection-slots" id="selection-slots" aria-live="polite"></div></details>
+                <div class="plan-submit"><div id="validation-message" class="validation-message" aria-live="polite"></div><button class="primary-button" id="calculate-button" type="button" disabled><span class="button-label">Рассчитать сценарий</span><span aria-hidden="true">↗</span></button><p class="calculate-hint" id="calculate-hint">Добавьте пять мероприятий, чтобы увидеть результат</p></div>
+                <details class="budget-directions" id="budget-directions"><summary>Направления в плане <span aria-hidden="true">＋</span></summary><div id="direction-summary" class="direction-summary"></div></details>
+                <details class="rules-details" id="rules-details"><summary>Правила симуляции <span aria-hidden="true">＋</span></summary><ul class="rules-list"><li>Ровно <strong>5 разных</strong> мероприятий.</li><li>Не больше <strong>2 мер на направление</strong>.</li><li>Для районной меры нужно выбрать район.</li><li>Несовместимые меры нельзя объединить.</li><li>Остаток бюджета не увеличивает Score.</li></ul><div id="incompatibility-list"></div></details>
               </div>
-              <span class="selection-count" id="selection-count">0 <span>/ 5</span></span>
-            </div>
-            <p class="panel-description">Выберите ровно пять разных мероприятий. Для районных проектов укажите, где их провести.</p>
-            <div class="selection-slots" id="selection-slots" aria-live="polite"></div>
-          </section>
+              <p class="aside-footnote">Числа рассчитывает модель.<br />AI объясняет результат и компромиссы.</p>
+            </aside>
 
-          <section class="panel catalog-panel" aria-labelledby="catalog-title">
-            <div class="catalog-heading">
-              <div>
-                <span class="panel-kicker">КАТАЛОГ ИНИЦИАТИВ</span>
-                <h3 id="catalog-title">Выберите мероприятия</h3>
-              </div>
-              <span class="catalog-count" id="catalog-count">14 инициатив</span>
-            </div>
-            <div class="filter-list" id="filter-list" role="group" aria-label="Фильтр по направлению"></div>
-            <div class="measure-list" id="measure-list"></div>
-            <div class="catalog-note"><span aria-hidden="true">ⓘ</span> Эффекты указаны с учётом лага за 8 кварталов. Синергии учитываются отдельно. Все данные синтетические.</div>
-          </section>
+            <section class="catalog-panel" aria-labelledby="catalog-title"><div class="catalog-heading"><div><h3 id="catalog-title" tabindex="-1">Каталог инициатив</h3><p>Выберите меру, укажите район и добавьте её в план.</p></div><span class="catalog-count" id="catalog-count">14 инициатив</span></div><div class="filter-list" id="filter-list" role="group" aria-label="Фильтр по направлению"></div><div class="measure-list" id="measure-list"></div><p class="catalog-note">Эффекты показаны за 8 кварталов с учётом лага. Бонусы синергий рассчитываются отдельно. Цены фиксированы датасетом.</p></section>
+          </div>
+        </section>
 
-          <section class="results-panel" id="results-panel" aria-labelledby="results-title" hidden>
-            <div class="results-header">
-              <div>
-                <span class="panel-kicker">ИТОГ СЦЕНАРИЯ</span>
-                <h3 id="results-title" tabindex="-1">Что изменится в городе</h3>
-              </div>
-              <div class="result-actions"><button class="outline-button" id="export-presentation-button" type="button">Презентация / PDF <span aria-hidden="true">↓</span></button><button class="outline-button" id="edit-plan-button" type="button">Изменить план <span aria-hidden="true">↗</span></button></div>
-            </div>
-            <div class="result-summary">
-              <div class="result-score-card">
-                <span class="result-score-label">ASTANA QUALITY OF LIFE SCORE</span>
-                <div class="result-score-line"><strong id="result-score">—</strong><span id="result-delta" class="delta-badge">—</span></div>
-                <div class="score-baseline-line">Было <span id="result-baseline">—</span> <span class="score-baseline-divider">·</span> Стало <strong id="result-current">—</strong></div>
-              </div>
-              <div class="result-summary-side">
-                <div class="summary-mini-stat"><span>РАСХОДЫ</span><strong id="result-spent">—</strong><small>из 100 единиц</small></div>
-                <div class="summary-mini-stat"><span>ОСТАЛОСЬ</span><strong id="result-remaining">—</strong><small>не даёт бонуса к Score</small></div>
-                <div class="summary-mini-stat"><span>КРИТИЧЕСКИХ ПОКАЗАТЕЛЕЙ</span><strong id="result-critical">—</strong><small>значение ниже 40</small></div>
-              </div>
-            </div>
-            <p class="screen-reader-only" id="result-announcement" role="status" aria-live="polite"></p>
-            <div class="critical-list" id="critical-list" hidden></div>
+        <section class="results-panel" id="results-panel" aria-labelledby="results-title" hidden>
+          <div class="section-heading results-header"><div><span class="eyebrow">03 / ПОСЛЕДСТВИЯ ВАШИХ РЕШЕНИЙ</span><h2 id="results-title" tabindex="-1">Город после вашего плана</h2></div><div class="result-actions"><button class="outline-button" id="edit-plan-button" type="button">Изменить план ↗</button><button class="outline-button" id="save-comparison-button" type="button">Сохранить для сравнения</button><button class="outline-button export-button" id="export-presentation-button" type="button">Презентация / PDF ↓</button></div></div>
+          <div class="result-summary"><div class="result-score-card"><span class="result-score-label">ASTANA QUALITY OF LIFE SCORE</span><div class="result-score-line"><strong id="result-score">—</strong><span id="result-delta" class="delta-badge">—</span></div><div class="score-baseline-line">Было <span id="result-baseline">—</span> <span aria-hidden="true">→</span> Стало <strong id="result-current">—</strong></div></div><div class="result-summary-side"><div class="summary-mini-stat"><span>Потрачено</span><strong id="result-spent">—</strong><small>из 100 единиц</small></div><div class="summary-mini-stat"><span>Осталось</span><strong id="result-remaining">—</strong><small>без бонуса к Score</small></div><div class="summary-mini-stat"><span>Критических значений</span><strong id="result-critical">—</strong><small>ниже порога 40</small></div></div></div>
+          <p class="screen-reader-only" id="result-announcement" role="status" aria-live="polite"></p><div class="critical-list" id="critical-list" hidden></div>
+          <details class="score-breakdown" id="score-breakdown">
+            <summary><span>Как получился Score?</span><span aria-hidden="true">＋</span></summary>
+            <div class="score-breakdown-body"><p class="score-formula" id="score-formula"></p><p class="result-help">Средний уровень учитывает доли населения. Минимальный районный балл поддерживает баланс районов. Каждый показатель строго ниже 40 даёт штраф в один балл.</p><div class="breakdown-table-wrap"><table class="breakdown-table"><thead><tr><th scope="col">Составляющая</th><th scope="col">Вклад до</th><th scope="col">Вклад после</th><th scope="col">Изменение вклада</th></tr></thead><tbody id="score-components"></tbody><tfoot id="score-components-total"></tfoot></table></div><p class="scale-note">Вклады показаны до пяти знаков, итоговый Score — до двух. Прирост на главной карточке — разность отображаемых Score; здесь показана точная расчётная дельта.</p></div>
+          </details>
+          <div class="result-section district-results"><div class="result-section-heading"><h3>Как изменились районы</h3><span class="chart-legend"><i></i> до <b></b> после</span></div><div id="district-chart" class="district-chart"></div></div>
+          <div class="explanation-card" id="explanation-card"><div class="explanation-heading"><div><span class="explanation-icon" aria-hidden="true">✳</span><h3>Что стоит за цифрами</h3></div><span id="explanation-source" class="source-badge">АНАЛИЗ</span></div><p id="explanation-summary" class="explanation-summary"></p><div id="explanation-summary-evidence"></div><div class="explanation-columns"><div><h4 class="positive-label">Сильные стороны</h4><ul id="explanation-strengths"></ul></div><div><h4 class="risk-label">Риски и компромиссы</h4><ul id="explanation-risks"></ul></div><div id="explanation-consequences-wrap" hidden><h4>Возможные последствия</h4><ul id="explanation-consequences"></ul></div></div><div id="explanation-recommendations-wrap" class="recommendation-row" hidden><strong>Идея для следующего сценария</strong><div id="explanation-recommendations"></div></div><p id="explanation-note" class="explanation-note" hidden></p></div>
+          <div class="result-section indicators-section"><div class="result-section-heading"><h3>От решения к показателю</h3></div><p class="result-help">Раскройте район: увидите изменения, оставшиеся проблемы и вклад инициатив.</p><div id="district-details" class="district-details"></div></div>
+          <div class="synergy-note" id="synergy-note" hidden><span aria-hidden="true">✳</span><div><strong>Вместе эффективнее: сработала синергия</strong><p id="synergy-copy"></p></div></div>
+          <div class="result-section alternatives-section"><div class="result-section-heading"><h3>А если изменить одно решение?</h3><span class="alternatives-tag">ПРОВЕРЕНО МОДЕЛЬЮ</span></div><p class="result-help">Допустимые одиночные замены с более высоким Score. Это варианты для сравнения, а не гарантия оптимального плана.</p><div id="alternative-list" class="alternative-list"></div></div>
+          <section class="team-submit-section" aria-labelledby="team-submit-title"><div><span class="eyebrow">ПОДЕЛИТЕСЬ СВОИМ ПОДХОДОМ</span><h3 id="team-submit-title">Готовы сравнить результаты?</h3><p class="result-help">Сохраните план команды. Сервер проверит решения и пересчитает Score.</p></div><form id="team-submit-form" class="team-submit-form"><label class="team-input-label" for="team-name">Название команды<input id="team-name" name="team_name" type="text" minlength="1" maxlength="40" required autocomplete="organization" placeholder="Например, Ultima" /></label><button class="team-save-button" id="save-team-button" type="submit">Сохранить результат ↗</button></form><details class="team-code-details"><summary>Код команды для обновления результата</summary><label for="team-code">Сохраните код после первой отправки. Он понадобится для обновления этой команды на другом устройстве.</label><input id="team-code" type="text" autocomplete="off" spellcheck="false" placeholder="Личный код команды" /></details><p class="team-save-status" id="team-save-status" aria-live="polite"></p></section>
+        </section>
 
-            <div class="explanation-card" id="explanation-card">
-              <div class="explanation-icon" aria-hidden="true">✳</div>
-              <div class="explanation-body">
-                <div class="explanation-heading"><h4>Разбор сценария</h4><span id="explanation-source" class="source-badge">АНАЛИЗ</span></div>
-                <p id="explanation-summary" class="explanation-summary"></p>
-                <div class="explanation-columns">
-                  <div><span class="explanation-label positive-label">СИЛЬНЫЕ СТОРОНЫ</span><ul id="explanation-strengths"></ul></div>
-                  <div><span class="explanation-label risk-label">РИСКИ И КОМПРОМИССЫ</span><ul id="explanation-risks"></ul></div>
-                </div>
-                <div class="explanation-consequences" id="explanation-consequences-wrap" hidden><span class="explanation-label">ВОЗМОЖНЫЕ ПОСЛЕДСТВИЯ</span><ul id="explanation-consequences"></ul></div>
-                <div id="explanation-recommendations-wrap" class="recommendation-row" hidden><span>ИДЕЯ ДЛЯ СЛЕДУЮЩЕГО СЦЕНАРИЯ</span><p id="explanation-recommendations"></p></div>
-                <p id="explanation-note" class="explanation-note" hidden></p>
-              </div>
-            </div>
-
-            <div class="result-section">
-              <div class="result-section-heading"><div><span class="panel-kicker">РАВНОМЕРНОСТЬ РАЗВИТИЯ</span><h4>Баллы районов</h4></div><span class="chart-legend"><i></i> до &nbsp; <b></b> после</span></div>
-              <div id="district-chart" class="district-chart"></div>
-            </div>
-
-            <div class="result-section indicators-section">
-              <div class="result-section-heading"><div><span class="panel-kicker">ПРИЧИНА ИЗМЕНЕНИЙ</span><h4>Показатели районов</h4></div></div>
-              <p class="result-help">Раскройте район, чтобы увидеть, какие показатели изменили выбранные меры.</p>
-              <div id="district-details" class="district-details"></div>
-            </div>
-
-            <div class="result-section alternatives-section">
-              <div class="result-section-heading"><div><span class="panel-kicker">ПЕРЕПРОВЕРЕНО МОДЕЛЬЮ</span><h4>Варианты улучшения плана</h4></div><span class="alternatives-tag">ОДНА ЗАМЕНА</span></div>
-              <p class="result-help">Проверяем замены инициатив и районов. Каждый вариант проходит те же правила и пересчитывается тем же движком.</p>
-              <div id="alternative-list" class="alternative-list"></div>
-            </div>
-
-            <div class="synergy-note" id="synergy-note" hidden><span aria-hidden="true">✳</span><div><strong>Сработала синергия</strong><p id="synergy-copy"></p></div></div>
-
-            <section class="result-section team-submit-section" aria-labelledby="team-submit-title">
-              <div class="result-section-heading"><div><span class="panel-kicker">ОБЩИЙ СТАРТ ДЛЯ ВСЕХ</span><h4 id="team-submit-title">Сохранить результат команды</h4></div></div>
-              <p class="result-help">В таблицу попадает только проверенный сервером сценарий. У каждой команды один обновляемый результат.</p>
-              <form id="team-submit-form" class="team-submit-form">
-                <label class="team-input-label" for="team-name">Название команды
-                  <input id="team-name" name="team_name" type="text" minlength="1" maxlength="40" required autocomplete="organization" placeholder="Например, Ultima" />
-                </label>
-                <button class="team-save-button" id="save-team-button" type="submit">Добавить в сравнение <span aria-hidden="true">↗</span></button>
-              </form>
-              <details class="team-code-details"><summary>Как обновить результат с другого устройства?</summary>
-                <label for="team-code">Код команды: сохраните его после первой отправки и введите здесь на другом устройстве.</label>
-                <input id="team-code" type="text" autocomplete="off" spellcheck="false" placeholder="Ваш личный код команды" />
-              </details>
-              <p class="team-save-status" id="team-save-status" aria-live="polite"></p>
-            </section>
-          </section>
-        </div>
-
-        <aside class="workspace-aside" aria-label="Бюджет и правила выбора">
-          <section class="budget-card panel">
-            <div class="aside-card-top"><span class="panel-kicker">ОБЩИЙ БЮДЖЕТ</span><span class="budget-lock" title="Одинаковый для всех">● ФИКСИРОВАН</span></div>
-            <div class="budget-number"><strong id="budget-spent">0</strong><span>/ <span id="budget-total">100</span></span></div>
-            <p class="budget-caption">условных единиц распределено</p>
-            <div class="budget-track" aria-label="Использованная часть бюджета"><span id="budget-progress"></span></div>
-            <div class="budget-remaining-row"><span>Остаток бюджета</span><strong id="budget-remaining">100</strong></div>
-            <details class="budget-directions" id="budget-directions" open>
-              <summary class="directions-title"><span>Направления в плане</span><small>максимум 2 <span aria-hidden="true">⌄</span></small></summary>
-              <div id="direction-summary" class="direction-summary"></div>
-            </details>
-          </section>
-
-          <section class="rules-card panel">
-            <div class="rules-heading"><span class="rules-check">✓</span><h4>Правила сценария</h4></div>
-            <details class="rules-details" id="rules-details" open><summary>Как работает выбор <span aria-hidden="true">⌄</span></summary>
-              <ul class="rules-list">
-                <li><span>01</span><p>Ровно <strong>5 разных</strong> мероприятий</p></li>
-                <li><span>02</span><p>Не больше <strong>2 на направление</strong></p></li>
-                <li><span>03</span><p>Районные меры требуют выбора района</p></li>
-                <li><span>04</span><p>Несовместимые меры нельзя объединить</p></li>
-              </ul>
-            </details>
-            <div id="validation-message" class="validation-message" aria-live="polite"></div>
-            <button class="primary-button" id="calculate-button" type="button" disabled>
-              <span class="button-label">Рассчитать сценарий</span>
-              <span class="button-icon" aria-hidden="true">↗</span>
-            </button>
-            <p class="calculate-hint" id="calculate-hint">Добавьте пять мероприятий, чтобы увидеть результат</p>
-          </section>
-
-          <div class="aside-footnote"><span class="footnote-spark">✳</span><p>Модель показывает <strong>условный сценарий</strong>, а не официальный прогноз города.</p></div>
-        </aside>
-      </div>
-
-      <section class="comparison-board panel" id="comparison-board" aria-labelledby="comparison-title" hidden>
-        <div class="comparison-heading"><div><span class="panel-kicker">СРАВНЕНИЕ СЦЕНАРИЕВ</span><h2 id="comparison-title">Как распределили бюджет команды</h2><p>Одинаковые исходные данные, бюджет 100 и версия модели для каждого результата.</p></div><button id="refresh-leaderboard" class="outline-button" type="button">Обновить таблицу ↻</button></div>
-        <div class="comparison-status" id="comparison-status" role="status" aria-live="polite"></div>
-        <div class="comparison-table-wrap"><table class="comparison-table"><thead><tr><th>#</th><th>КОМАНДА</th><th>SCORE</th><th>ИЗМЕНЕНИЕ</th><th>РАСХОДЫ</th><th>КРИТИЧЕСКИХ</th><th></th></tr></thead><tbody id="leaderboard-rows"></tbody></table></div>
-        <div id="team-comparison" class="team-comparison" hidden></div>
-      </section>
-
-      <footer class="page-footer"><span>ГОРОДСКАЯ ЛАБОРАТОРИЯ <i>·</i> HACKALEM AI</span><span>Прозрачная модель · Проверяемые решения</span></footer>
-    </main>
-
-    <div class="mobile-dock" id="mobile-dock" hidden>
-      <div class="mobile-dock-status"><span>ВАШ СЦЕНАРИЙ</span><strong id="mobile-dock-summary">0 из 5 · 0 / 100 ед.</strong></div>
-      <button class="mobile-dock-button" id="mobile-calculate-button" type="button" disabled>Рассчитать <span aria-hidden="true">↗</span></button>
+        <section class="personal-comparison" id="personal-comparison" aria-labelledby="personal-comparison-title" hidden>
+          <div class="section-heading"><div><span class="eyebrow">ВАШ ЭКСПЕРИМЕНТ</span><h2 id="personal-comparison-title" tabindex="-1">План А / План Б</h2></div><button class="text-button" id="clear-comparison-button" type="button">Убрать сравнение ×</button></div>
+          <div id="personal-comparison-content"></div>
+        </section>
+        <section class="comparison-board" id="comparison-board" aria-labelledby="comparison-title" hidden><div class="section-heading comparison-heading"><div><span class="eyebrow">04 / ОДИН СТАРТ — РАЗНЫЕ СТРАТЕГИИ</span><h2 id="comparison-title">Решения других команд</h2><p>Одинаковый бюджет, исходные данные и версия модели.</p></div><button id="refresh-leaderboard" class="outline-button" type="button">Обновить ↻</button></div><div class="comparison-status" id="comparison-status" role="status" aria-live="polite"></div><div class="comparison-table-wrap"><table class="comparison-table"><thead><tr><th scope="col">МЕСТО</th><th scope="col">КОМАНДА</th><th scope="col">SCORE</th><th scope="col">ПРИРОСТ</th><th scope="col">БЮДЖЕТ</th><th scope="col">КРИТИЧЕСКИХ</th><th scope="col"><span class="screen-reader-only">Действие</span></th></tr></thead><tbody id="leaderboard-rows"></tbody></table></div><div id="team-comparison" class="team-comparison" hidden></div></section>
+        <footer class="page-footer"><span>АКИМ НА 5 ЧАСОВ <i>·</i> HACKALEM AI</span><span>Синтетические данные. Проверяемые решения.</span></footer>
+      </main>
     </div>
-
+    <div class="mobile-dock" id="mobile-dock" hidden><a href="#decisions-title" class="mobile-dock-status"><span>ВАШ ПЛАН</span><strong id="mobile-dock-summary">0 из 5 · 0 / 100 ед.</strong></a><button class="mobile-dock-button" id="mobile-calculate-button" type="button" disabled>Рассчитать ↗</button></div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </body>
 </html>

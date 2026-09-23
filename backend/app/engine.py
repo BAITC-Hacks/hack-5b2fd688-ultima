@@ -36,6 +36,7 @@ def _load_dataset() -> dict[str, Any]:
 
 
 DATA = _load_dataset()
+EXAMPLE = json.loads((DATA_FILE.parent / "example.json").read_text(encoding="utf-8"))
 INDICATORS = {item["id"]: item for item in DATA["indicators"]}
 DISTRICTS = {item["id"]: item for item in DATA["districts"]}
 MEASURES = {item["id"]: item for item in DATA["measures"]}
@@ -86,8 +87,10 @@ def validate_choices(choices: list[Any], *, require_five: bool = False) -> dict[
         seen.add(measure_id)
 
         if measure["type"] == "district":
-            if not district_id:
+            if district_id is None or district_id == "":
                 errors.append(f"Для мероприятия {measure_id} «{measure['name']}» выберите район.")
+            elif not isinstance(district_id, str):
+                errors.append(f"Для мероприятия {measure_id} идентификатор района должен быть строкой.")
             elif district_id not in DISTRICTS:
                 errors.append(f"Для мероприятия {measure_id} указан неизвестный район.")
         elif district_id is not None:
@@ -166,6 +169,21 @@ def _score_values(values: dict[str, dict[str, float]]) -> dict[str, Any]:
         "district_scores": district_scores,
         "critical_count": len(critical),
         "critical_indicators": critical,
+        "score_components": [
+            {
+                "id": "average", "label": "Средний уровень города", "coefficient": 0.7,
+                "value": city_average, "contribution": 0.7 * city_average,
+            },
+            {
+                "id": "weakest", "label": "Слабейший район", "coefficient": 0.3,
+                "value": district_scores[weakest_id], "contribution": 0.3 * district_scores[weakest_id],
+                "district_id": weakest_id, "district_name": DISTRICTS[weakest_id]["name"],
+            },
+            {
+                "id": "critical", "label": "Штраф за критические показатели", "coefficient": -1,
+                "value": len(critical), "contribution": -len(critical),
+            },
+        ],
     }
 
 
@@ -334,6 +352,17 @@ def _build_report(choices: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         "city_average": result["city_average"],
         "baseline_city_average": baseline["city_average"],
+        "score_breakdown": {
+            "formula": "Score = 0.7 × D_avg + 0.3 × D_min − N_crit",
+            "components": [
+                {
+                    "id": after["id"], "label": after["label"], "coefficient": after["coefficient"],
+                    "before": before, "after": after,
+                    "delta": after["contribution"] - before["contribution"],
+                }
+                for before, after in zip(baseline["score_components"], result["score_components"], strict=True)
+            ],
+        },
         "weakest_district_id": result["weakest_district_id"],
         "weakest_district_name": DISTRICTS[result["weakest_district_id"]]["name"],
         "weakest_district_score": result["weakest_district_score"],
@@ -369,12 +398,18 @@ def baseline_report() -> dict[str, Any]:
 
 def public_config() -> dict[str, Any]:
     """Return the shared, synthetic rules and data used by every simulation."""
+    example_report = simulate(EXAMPLE["selections"])
     return {
         "model_version": DATA["model_version"],
         "budget": DATA["budget"],
         "horizon_quarters": DATA["horizon_quarters"],
         "required_selections": DATA["required_selections"],
         "max_per_direction": DATA["max_per_direction"],
+        "example_scenario": {
+            **EXAMPLE,
+            "total_cost": example_report["total_cost"],
+            "score": example_report["score"],
+        },
         "indicators": DATA["indicators"],
         "districts": DATA["districts"],
         "measures": [

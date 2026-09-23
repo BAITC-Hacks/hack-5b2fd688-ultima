@@ -1,6 +1,9 @@
 import asyncio
+from http.client import IncompleteRead
+from io import BytesIO
 
 import httpx
+import pytest
 
 from backend.app.main import app
 
@@ -65,6 +68,32 @@ def test_analyze_endpoint_uses_fallback_without_api_key(monkeypatch) -> None:
     assert response.json()["explanation"]["status"] == "fallback"
     assert response.json()["alternative_scenarios"]
     assert "вариант" in response.json()["explanation"]["recommendations"][0]
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [IncompleteRead(b'{"choices":', 100), ConnectionResetError("connection reset while reading")],
+    ids=["incomplete-read", "connection-reset"],
+)
+def test_analyze_preserves_report_when_provider_response_is_interrupted(monkeypatch, failure) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    class InterruptedResponse(BytesIO):
+        def read(self, *args, **kwargs):
+            raise failure
+
+    monkeypatch.setattr("backend.app.ai.urlopen", lambda request, timeout: InterruptedResponse())
+
+    response = api_request("POST", "/api/analyze", json_body={"selections": REFERENCE_SCENARIO})
+
+    assert response.status_code == 200
+    report = response.json()
+    assert report["score"] == pytest.approx(56.54307)
+    assert report["total_cost"] == 95
+    assert report["alternative_scenarios"]
+    assert report["explanation"]["source"] == "rules"
+    assert report["explanation"]["status"] == "fallback"
+    assert "временно недоступен" in report["explanation"]["note"]
 
 
 def test_invalid_scenario_does_not_receive_a_score() -> None:

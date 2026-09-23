@@ -2,18 +2,26 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Annotated, Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
 from .ai import explain
 from .engine import DATA, public_config, simulate, validate_choices
-from .leaderboard import TeamNameTakenError, get_leaderboard, submit_scenario
+from .leaderboard import (
+    TeamNameTakenError,
+    get_leaderboard,
+    normalise_team_name,
+    submit_scenario,
+    validate_owner_token,
+)
 from .recommender import recommend_alternatives
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -34,12 +42,13 @@ class SelectionRequest(BaseModel):
     selections: list[Selection] = Field(default_factory=list, max_length=10)
 
 
-TeamName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+TeamName = Annotated[str, BeforeValidator(normalise_team_name)]
+OwnerToken = Annotated[str | None, BeforeValidator(validate_owner_token)]
 
 
 class TeamSubmissionRequest(SelectionRequest):
     team_name: TeamName
-    owner_token: str | None = Field(default=None, min_length=20, max_length=100)
+    owner_token: OwnerToken = None
 
 
 app = FastAPI(
@@ -47,6 +56,21 @@ app = FastAPI(
     description="Симулятор распределения синтетического городского бюджета.",
     version="1.0.0",
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error(_request: Request, error: RequestValidationError) -> Response:
+    # Do not echo raw values (including edit tokens). JSON escaping also keeps
+    # invalid Unicode in request field names from breaking the error response.
+    details = [
+        {key: item[key] for key in ("type", "loc", "msg")}
+        for item in error.errors()
+    ]
+    return Response(
+        content=json.dumps({"detail": details}, ensure_ascii=True),
+        status_code=422,
+        media_type="application/json",
+    )
 
 
 @app.get("/api/health")
@@ -111,6 +135,8 @@ def submit_leaderboard_entry(request: TeamSubmissionRequest) -> Any:
         )
     except TeamNameTakenError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     return {"valid": True, "model_version": report["model_version"], "entry": entry}
 
 

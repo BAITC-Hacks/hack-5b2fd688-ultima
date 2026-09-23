@@ -76,7 +76,8 @@ def main() -> int:
         wait_for_server(process, base_url)
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
-            page = browser.new_page(viewport={"width": 1440, "height": 1000})
+            main_context = browser.new_context(viewport={"width": 1440, "height": 1000})
+            page = main_context.new_page()
             page_errors: list[str] = []
             page.on("pageerror", lambda error: page_errors.append(str(error)))
             page.goto(base_url, wait_until="networkidle")
@@ -87,7 +88,22 @@ def main() -> int:
             expect(nura_profile.locator(".baseline-indicators .is-critical")).to_have_count(2)
             expect(nura_profile.locator(".baseline-indicators")).to_contain_text("38")
             expect(nura_profile.locator(".baseline-indicators")).to_contain_text("35")
+            for district_id in ("esil", "almaty", "saryarka", "baikonur", "nura"):
+                card = page.locator(f'[data-baseline-district="{district_id}"]')
+                card.click()
+                expect(card).to_have_attribute("aria-pressed", "true")
+                profile = page.locator(f'[data-district-profile="{district_id}"]')
+                expect(profile).to_be_visible()
+                expect(profile.locator(".baseline-indicators dd")).to_have_count(10)
+                expect(page.locator(".baseline-profile:visible")).to_have_count(1)
             page.locator(".baseline-details summary").click()
+
+            page.locator('[data-filter="social"]').click()
+            expect(page.locator(".measure-card")).to_have_count(3)
+            page.locator('[data-district-select="M7"]').select_option("nura")
+            page.locator('[data-filter="all"]').click()
+            expect(page.locator(".measure-card")).to_have_count(14)
+            expect(page.locator('[data-district-select="M7"]')).to_have_value("nura")
 
             choose_measure(page, "M7", "nura")
             choose_measure(page, "M8", "nura")
@@ -104,7 +120,17 @@ def main() -> int:
             expect(page.locator("#result-score")).to_have_text("56.54", timeout=15_000)
             expect(page.locator("#result-delta")).to_contain_text("3.98")
             expect(page.locator("#results-title")).to_be_focused(timeout=5_000)
-            expect(page.locator("#explanation-consequences li")).to_have_count(2)
+            expect(page.locator('[data-nav="results-panel"]')).to_have_attribute("aria-current", "location")
+            if not 1 <= page.locator("#explanation-consequences > li").count() <= 3:
+                raise AssertionError("The explanation should include grounded consequences.")
+            page.locator("#score-breakdown > summary").click()
+            expect(page.locator("#score-components tr")).to_have_count(3)
+            expect(page.locator('#score-components [data-component="critical"]')).to_contain_text("+2.00000")
+            expect(page.locator("#score-components-total")).to_contain_text("56.54307")
+            expect(page.locator("#score-components-total")).to_contain_text("+3.98539")
+            evidence = page.locator("#explanation-summary-evidence .fact-evidence").first
+            evidence.locator("summary").click()
+            expect(evidence.locator("ul")).to_be_visible()
             alternatives = page.locator(".alternative-card")
             if alternatives.count() != 3:
                 raise AssertionError("The reference scenario should show three validated alternatives.")
@@ -133,12 +159,39 @@ def main() -> int:
                 raise AssertionError(
                     f"Printing the scenario produced {len(pdf_pages)} pages, expected three: {page_snippets}"
                 )
+
+            # A full-length provider response used to spill the final slide onto a
+            # fourth page. Check both pagination and actual slide overflow.
+            long_deck = page.evaluate("""() => {
+                const report = structuredClone(state.report);
+                const prose = 'Развитие районной инфраструктуры улучшает доступность услуг, '
+                    + 'однако требует сравнения эффектов для остальных районов города. ';
+                report.explanation.summary = prose.repeat(4).slice(0, 400);
+                for (const field of ['strengths', 'risks', 'recommendations', 'consequences']) {
+                    report.explanation[field] = Array(3).fill(prose.repeat(4).slice(0, 360));
+                }
+                report.explanation.consequences[0] = 'Уникальное последствие сценария. ' + prose.repeat(2);
+                return buildPresentationHtml(report, '<img src=x onerror="window.injected=true">');
+            }""")
+            print_page.set_content(long_deck)
+            expect(print_page.locator(".consequences")).to_contain_text("Уникальное последствие сценария")
+            expect(print_page.locator("img, script")).to_have_count(0)
+            print_page.emulate_media(media="print")
+            long_pdf = PdfReader(BytesIO(print_page.pdf(format="A4", landscape=True, print_background=True)))
+            if len(long_pdf.pages) != 3:
+                raise AssertionError("A long AI explanation must still print on three pages.")
+            if print_page.evaluate("""() => [...document.querySelectorAll('.slide')]
+                .some(slide => slide.scrollHeight > slide.clientHeight + 1)"""):
+                raise AssertionError("Presentation text must fit its slide without clipping.")
             print_page.close()
 
             page.locator("#save-team-button").click()
             expect(page.locator("#leaderboard-rows tr")).to_have_count(1)
             if len(page.locator("#team-code").input_value()) < 20:
                 raise AssertionError("Team edit code should be issued for updating the result.")
+
+            page.locator("#save-comparison-button").click()
+            expect(page.locator("#personal-score-delta")).to_have_text("0.00 Score")
 
             page.locator('[data-use-alternative="0"]').click()
             page.locator(".selection-slot.filled .slot-measure-name").filter(
@@ -148,6 +201,42 @@ def main() -> int:
             expect(calculate).to_be_enabled(timeout=5_000)
             calculate.click()
             expect(page.locator("#result-score")).to_have_text("57.21", timeout=15_000)
+            expect(page.locator("#personal-score-delta")).to_have_text("+0.67 Score")
+            expect(page.locator(".personal-plan-card").first).to_contain_text("56.54")
+            expect(page.locator(".personal-plan-card").nth(1)).to_contain_text("57.21")
+            expect(page.locator(".personal-gains")).to_contain_text("Нура")
+            expect(page.locator(".personal-losses")).to_contain_text("Сарыарка")
+            expect(page.locator(".personal-losses")).to_contain_text("−8.75")
+            expect(page.locator(".personal-district-table tbody tr")).to_have_count(5)
+
+            # Restoring a snapshot must recalculate its choices, ignoring any
+            # fabricated numeric report in browser storage. No paid analysis.
+            page.evaluate("""() => {
+                const saved = JSON.parse(localStorage.getItem(COMPARISON_KEY));
+                saved.report = {score: 99.99};
+                localStorage.setItem(COMPARISON_KEY, JSON.stringify(saved));
+            }""")
+            restored = page.context.new_page()
+            restored.on("pageerror", lambda error: page_errors.append(str(error)))
+            restored.goto(base_url, wait_until="networkidle")
+            expect(restored.locator(".personal-plan-card")).to_have_count(1)
+            expect(restored.locator(".personal-plan-card")).to_contain_text("56.54")
+            expect(restored.locator("#results-panel")).to_be_hidden()
+            restored.locator("[data-load-saved-plan]").click()
+            expect(restored.locator("#budget-spent")).to_have_text("95")
+            expect(restored.locator('[data-remove="M5"]')).to_have_count(1)
+            restored.locator("#clear-comparison-button").click()
+            expect(restored.locator("#personal-comparison")).to_be_hidden()
+            if restored.evaluate("localStorage.getItem(COMPARISON_KEY) !== null"):
+                raise AssertionError("Clearing plan A must remove its stored choices.")
+            restored.evaluate("""() => localStorage.setItem(COMPARISON_KEY, JSON.stringify({
+                model_version: 'different-model', selections: state.selections
+            }))""")
+            restored.reload(wait_until="networkidle")
+            expect(restored.locator("#personal-comparison-content")).to_contain_text("другой версии модели")
+            expect(restored.locator(".personal-plan-card")).to_have_count(0)
+            restored.locator("#clear-comparison-button").click()
+            restored.close()
 
             page.locator("#team-name").fill("Новый город")
             page.locator("#save-team-button").click()
@@ -240,34 +329,65 @@ def main() -> int:
             stale_page.wait_for_function("state.loading === false")
             expect(stale_page.locator(".selection-slot.filled")).to_have_count(0)
             expect(stale_page.locator("#results-panel")).to_be_hidden()
+            stale_page.locator("#load-example-button").click()
+            expect(stale_page.locator(".selection-slot.filled")).to_have_count(5)
+            stale_page.evaluate("delete document.documentElement.dataset.pendingAnalyze")
+            stale_page.locator("#calculate-button").click()
+            stale_page.locator('html[data-pending-analyze="true"]').wait_for()
+            stale_page.locator("#load-example-button").click()
+            stale_page.evaluate("window.releaseAnalyze()")
+            stale_page.wait_for_function("state.loading === false")
+            expect(stale_page.locator("#results-panel")).to_be_hidden()
             stale_context.close()
 
             mobile = browser.new_page(viewport={"width": 390, "height": 844})
             mobile.on("pageerror", lambda error: page_errors.append(str(error)))
             mobile.goto(base_url, wait_until="networkidle")
             mobile.locator("#workspace").wait_for(state="visible")
-            choose_measure(mobile, "M7", "nura")
-            choose_measure(mobile, "M8", "nura")
-            choose_measure(mobile, "M10", "nura")
-            choose_measure(mobile, "M12")
-            choose_measure(mobile, "M5", "saryarka")
+            mobile.locator('[data-baseline-district="nura"]').click()
+            expect(mobile.locator('[data-district-profile="nura"]')).to_be_visible()
+            choose_measure(mobile, "M1", "esil")
+            analyses = []
+            mobile.on("request", lambda request: analyses.append(request.url) if request.url.endswith("/api/analyze") else None)
+            mobile.locator("#load-example-button").click()
+            expect(mobile.locator(".selection-slot.filled")).to_have_count(5)
+            expect(mobile.locator('[data-remove="M1"]')).to_have_count(0)
+            expect(mobile.locator("#example-reasons li")).to_have_count(5)
+            expect(mobile.locator("#results-panel")).to_be_hidden()
+            if analyses:
+                raise AssertionError("Loading the example must not automatically invoke AI.")
             expect(mobile.locator("#mobile-dock-summary")).to_have_text("5 из 5 · 95 / 100 ед.")
             expect(mobile.locator("#mobile-calculate-button")).to_be_enabled()
             mobile.locator("#mobile-calculate-button").click()
             expect(mobile.locator("#result-score")).to_have_text("56.54", timeout=15_000)
             expect(mobile.locator("#mobile-calculate-button")).to_contain_text("К результату")
-            has_horizontal_overflow = mobile.evaluate(
-                "document.documentElement.scrollWidth > window.innerWidth"
-            )
-            if has_horizontal_overflow:
-                raise AssertionError("The result and leaderboard should fit a 390px mobile viewport without horizontal overflow.")
+            mobile.locator("#score-breakdown > summary").click()
+            mobile.locator("#save-comparison-button").click()
+            mobile.locator('[data-use-alternative="0"]').click()
+            expect(mobile.locator("#personal-score-delta")).to_have_count(0)
+            mobile.locator("#mobile-calculate-button").click()
+            expect(mobile.locator("#result-score")).to_have_text("57.21", timeout=15_000)
+            expect(mobile.locator("#personal-score-delta")).to_have_text("+0.67 Score")
+            mobile.locator(".mobile-dock-status").click()
+            expect(mobile.locator(".selection-slot.filled").first).to_be_visible()
+            mobile.locator("#leaderboard-rows tr").first.locator("[data-compare-team]").click()
+            for width in (320, 390, 520, 768, 800, 801, 1100, 1440):
+                mobile.set_viewport_size({"width": width, "height": 900})
+                if mobile.evaluate("document.documentElement.scrollWidth > window.innerWidth"):
+                    raise AssertionError(f"The simulator should fit a {width}px viewport without horizontal overflow.")
+            mobile.set_viewport_size({"width": 390, "height": 844})
+            mobile.locator(".mobile-dock-status").click()
+            mobile.locator('[data-remove="M7"]').click()
+            expect(mobile.locator(".selection-slot.filled")).to_have_count(4)
+            expect(mobile.locator("#mobile-calculate-button")).to_be_disabled()
+            expect(mobile.locator("#results-panel")).to_be_hidden()
             if page_errors:
                 raise AssertionError("Browser JavaScript errors: " + "; ".join(page_errors))
 
             mobile.close()
             browser.close()
 
-        print("PASS: browser budget, Score, risks, team ranking, comparison, export, and mobile layout")
+        print("PASS: example, Score breakdown, grounded analysis, A/B comparison, teams, export, stale responses, and mobile layout")
         return 0
     finally:
         process.terminate()
