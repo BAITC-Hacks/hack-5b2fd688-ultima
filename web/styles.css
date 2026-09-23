@@ -156,11 +156,12 @@ summary::-webkit-details-marker { display: none; }
 .filter-chip:hover { border-color: #9bb0f8; color: var(--blue); }
 .filter-chip.active { color: #fff; background: var(--blue); border-color: var(--blue); box-shadow: 0 4px 9px #315cf51a; }
 .measure-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
-.measure-card { --category: #567ed6; --category-soft: #edf3ff; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 19px; display: flex; flex-direction: column; transition: border-color .15s, box-shadow .15s, transform .15s; }
-.measure-card[data-direction='ecology'] { --category: #4c9b72; --category-soft: #eaf6ef; }
-.measure-card[data-direction='social'] { --category: #a976bb; --category-soft: #f5edfa; }
-.measure-card[data-direction='safety'] { --category: #ca9342; --category-soft: #fdf4e5; }
-.measure-card[data-direction='services'] { --category: #4b9bb2; --category-soft: #eaf6fa; }
+.measure-card, .map-measure-preview, .map-project-chip { --category: #567ed6; --category-soft: #edf3ff; }
+.measure-card { min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 19px; display: flex; flex-direction: column; transition: border-color .15s, box-shadow .15s, transform .15s; }
+:is(.measure-card, .map-measure-preview, .map-project-chip)[data-direction='ecology'] { --category: #4c9b72; --category-soft: #eaf6ef; }
+:is(.measure-card, .map-measure-preview, .map-project-chip)[data-direction='social'] { --category: #a976bb; --category-soft: #f5edfa; }
+:is(.measure-card, .map-measure-preview, .map-project-chip)[data-direction='safety'] { --category: #ca9342; --category-soft: #fdf4e5; }
+:is(.measure-card, .map-measure-preview, .map-project-chip)[data-direction='services'] { --category: #4b9bb2; --category-soft: #eaf6fa; }
 .measure-card:hover { border-color: #a5b7ef; box-shadow: 0 8px 24px #294b9b08; transform: translateY(-2px); }
 .measure-card.is-selected { border-color: #9db3f8; background: #fbfcff; }
 .measure-card.is-blocked { background: #fafbfe; }

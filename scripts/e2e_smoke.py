@@ -13,6 +13,7 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
+from map_checks import check_city_map, expect_invalid_candidate, pick_map_measure
 from playwright.sync_api import expect, sync_playwright
 from pypdf import PdfReader
 
@@ -76,6 +77,7 @@ def main() -> int:
         wait_for_server(process, base_url)
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
+            check_city_map(browser, base_url)
             main_context = browser.new_context(viewport={"width": 1440, "height": 1000})
             page = main_context.new_page()
             page_errors: list[str] = []
@@ -287,6 +289,12 @@ def main() -> int:
             expect(budget_page.locator("#toast")).to_contain_text("Бюджет превышен", timeout=5_000)
             expect(budget_page.locator(".selection-slot.filled")).to_have_count(4)
             expect(budget_page.locator("#budget-spent")).to_have_text("99")
+            expect(budget_page.locator('[data-map-project="M10"]')).to_have_count(0)
+            budget_page.locator("#map-district").select_option("baikonur")
+            pick_map_measure(budget_page, "M10")
+            expect_invalid_candidate(budget_page, "Бюджет превышен")
+            expect(budget_page.locator("#map-plan-budget")).to_have_text("99 / 100")
+            expect(budget_page.locator("[data-map-project]")).to_have_count(4)
             budget_context.close()
 
             stale_context = browser.new_context(viewport={"width": 1100, "height": 900})
@@ -346,7 +354,22 @@ def main() -> int:
             mobile.locator("#workspace").wait_for(state="visible")
             mobile.locator('[data-baseline-district="nura"]').click()
             expect(mobile.locator('[data-district-profile="nura"]')).to_be_visible()
-            choose_measure(mobile, "M1", "esil")
+            mobile.locator("#map-district").select_option("esil")
+            pick_map_measure(mobile, "M1")
+            expect(mobile.locator("#map-add-button")).to_be_enabled()
+            mobile.locator("#map-add-button").click()
+            expect(mobile.locator('[data-map-project="M1"]')).to_have_attribute("data-project-district", "esil")
+            expect(mobile.locator(".selection-slot.filled")).to_have_count(1)
+            expect(mobile.locator('[data-map-project="M1"]')).to_be_focused()
+            mobile.locator("#map-to-builder").click()
+            expect(mobile.locator('[data-map-pick="M1"]')).to_be_focused()
+            expect(mobile.locator("#map-remove-button")).to_contain_text("Есиль")
+            expect(mobile.locator("#map-focus-button")).to_have_attribute("aria-pressed", "true")
+            mobile.locator("#map-reset-view").click()
+            expect(mobile.locator("#map-focus-button")).to_have_attribute("aria-pressed", "false")
+            mobile.locator("#map-focus-button").click()
+            expect(mobile.locator("#map-focus-button")).to_have_attribute("aria-pressed", "true")
+            mobile.locator("#map-reset-view").click()
             analyses = []
             mobile.on("request", lambda request: analyses.append(request.url) if request.url.endswith("/api/analyze") else None)
             mobile.locator("#load-example-button").click()
@@ -387,7 +410,7 @@ def main() -> int:
             mobile.close()
             browser.close()
 
-        print("PASS: example, Score breakdown, grounded analysis, A/B comparison, teams, export, stale responses, and mobile layout")
+        print("PASS: interactive map, example, Score breakdown, grounded analysis, A/B comparison, teams, export, stale responses, and mobile layout")
         return 0
     finally:
         process.terminate()

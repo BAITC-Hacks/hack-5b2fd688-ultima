@@ -8,7 +8,10 @@
     <title>Аким на 5 часов — лаборатория городских решений</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%232d5bff'/%3E%3Cpath d='m10 29 10-19 10 19M14 23h12' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/map-workspace.css" />
+    <link rel="stylesheet" href="/city-map.css" />
     <script src="/presentation.js" defer></script>
+    <script src="/city-map.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
   <body>
@@ -18,6 +21,7 @@
       <span class="nav-label">ВАШЕ РАБОЧЕЕ ПРОСТРАНСТВО</span>
       <nav class="main-nav">
         <a href="#top" class="nav-link active" data-nav="top" aria-current="location"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10 12 3l9 7v11h-7v-7h-4v7H3z"/></svg><span>Обзор города</span></a>
+        <a href="#city-map-section" class="nav-link" data-nav="city-map-section"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/></svg><span>Карта решений</span></a>
         <a href="#workspace" class="nav-link" data-nav="workspace"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6v4H9zM8 12h8M8 16h5"/></svg><span>Собрать план</span><small id="nav-plan-count">0/5</small></a>
         <a href="#results-panel" class="nav-link" data-nav="results-panel" id="results-nav" aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V4M4 20h17M8 16v-5M13 16V7M18 16V3"/></svg><span>Результат</span></a>
         <a href="#comparison-board" class="nav-link" data-nav="comparison-board"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 4v3"/></svg><span>Команды</span></a>
@@ -34,7 +38,7 @@
 
       <main class="page-shell" id="main-content">
         <section class="hero" id="top" aria-labelledby="hero-title">
-          <div class="hero-copy"><span class="eyebrow"><span></span> ГОРОД НАЧИНАЕТСЯ С РЕШЕНИЙ</span><h1 id="hero-title">Сегодня вы — <em>аким.</em></h1><p>Пять решений. Сто единиц бюджета. Какой станет Астана?<br />Выберите инициативы и узнайте, что изменится в районах.</p><a class="hero-link" href="#workspace">Собрать план действий <span aria-hidden="true">↗</span></a></div>
+          <div class="hero-copy"><span class="eyebrow"><span></span> ГОРОД НАЧИНАЕТСЯ С РЕШЕНИЙ</span><h1 id="hero-title">Сегодня вы — <em>аким.</em></h1><p>Пять решений. Сто единиц бюджета. Какой станет Астана?<br />Выберите инициативы и узнайте, что изменится в районах.</p><a class="hero-link" href="#city-map-section">Построить город на карте <span aria-hidden="true">↗</span></a></div>
           <div class="city-illustration" aria-hidden="true">
             <svg viewBox="0 0 420 220" focusable="false">
               <defs><pattern id="city-grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="#e4e9f6" stroke-width="1"/></pattern></defs>
@@ -71,6 +75,53 @@
 
         <div id="app-error" class="app-error" role="alert" hidden><strong>Не удалось загрузить симулятор.</strong><span id="app-error-message">Проверьте соединение с сервером и обновите страницу.</span></div>
         <noscript><p class="app-error">Для выбора инициатив и расчёта включите JavaScript в браузере.</p></noscript>
+
+        <section class="city-map-section" id="city-map-section" aria-labelledby="city-map-title" hidden>
+          <div class="section-heading"><div><span class="eyebrow">ИНТЕРАКТИВНАЯ ГОРОДСКАЯ МАСТЕРСКАЯ</span><h2 id="city-map-title">Астана, которую вы создаёте.</h2></div><div class="map-heading-actions"><a class="map-catalog-link" href="#workspace">Каталог ↗</a><button class="outline-button" id="map-expand-button" type="button" aria-expanded="false">Развернуть карту ⛶</button></div></div>
+          <p class="map-intro">От идеи — к новому городу. Выберите район и проект, посмотрите, где он появится, и добавьте его в свой план.</p>
+          <div class="map-workspace">
+            <div class="map-stage">
+              <div class="map-toolbar">
+                <div class="map-view-tabs" role="group" aria-label="Состояние города"><button type="button" data-map-view="baseline" aria-pressed="false">Исходный город</button><button type="button" data-map-view="plan" aria-pressed="true">Ваш план <span id="map-toolbar-count">0/5</span></button></div>
+                <span class="map-mode" id="map-mode">ЭСКИЗ ПЛАНА</span>
+              </div>
+              <div class="map-layer-bar"><div class="map-layer-tabs" role="group" aria-label="Слой карты"><button type="button" data-map-layer="projects" aria-pressed="true">◈ Проекты</button><button type="button" data-map-layer="scores" aria-pressed="false">◉ Баллы районов</button></div><button class="map-tool-button" id="map-motion-button" type="button" aria-pressed="false" aria-label="Приостановить анимации">Ⅱ Пауза</button></div>
+              <div class="astana-map" id="astana-map" aria-label="Интерактивная схема пяти районов Астаны"></div>
+              <div class="map-navigation"><div><button class="map-tool-button map-zoom-button" id="map-zoom-out" type="button" aria-label="Уменьшить карту">−</button><span id="map-zoom-label">100%</span><button class="map-tool-button map-zoom-button" id="map-zoom-in" type="button" aria-label="Увеличить карту">＋</button></div><button class="map-tool-button" id="map-focus-button" type="button" aria-pressed="false">К району ◎</button><button class="map-tool-button" id="map-reset-view" type="button">Весь город ↗</button></div>
+              <button class="map-to-builder" id="map-to-builder" type="button">Выбрать следующий проект ↓</button>
+              <div class="map-legend" id="map-project-legend"><span><i class="legend-district"></i> Выбранный район</span><span><i class="legend-project"></i> Добавлено в план</span><span><i class="legend-preview"></i> Эскиз до добавления</span></div>
+              <div class="map-legend map-score-legend" id="map-score-legend" hidden><strong>Балл района</strong><span><i class="legend-score-low"></i> &lt; 40</span><span><i class="legend-score-mid"></i> 40–&lt;60</span><span><i class="legend-score-high"></i> ≥ 60</span><small>Цвет — районный балл, не число критических показателей.</small></div>
+              <details class="map-projects-drawer" id="map-projects-drawer"><summary>Проекты в плане <span id="map-drawer-count">0 / 5</span><span aria-hidden="true">⌄</span></summary><div class="map-selected-projects" id="map-selected-projects" aria-label="Меры на карте"></div></details>
+              <p class="map-geography-note">Схема пяти районов датасета. Границы, расположение объектов и маршруты условны. Анимация показывает выбранные проекты; эффекты за восемь кварталов рассчитывает модель.</p>
+            </div>
+            <aside class="map-builder" id="map-builder" aria-label="Добавление инициатив на карте">
+              <div class="map-builder-body">
+              <div class="map-builder-heading"><span class="eyebrow">ПЯТЬ ШАГОВ К ЛУЧШЕМУ ГОРОДУ</span><div class="map-plan-progress" id="map-plan-progress" aria-label="Заполнение плана"></div></div>
+              <label class="map-field-label" for="map-district">01 / ВЫБЕРИТЕ РАЙОН</label>
+              <select id="map-district" class="map-select"></select>
+              <div class="map-district-summary"><div><span id="map-district-score-label">Исходный балл района</span><strong id="map-district-score">—</strong><span id="map-district-delta" hidden></span></div><details class="map-district-context"><summary>Приоритеты района <span aria-hidden="true">⌄</span></summary><p id="map-district-profile"></p><div id="map-district-priorities"></div></details></div>
+              <span class="map-field-label">02 / ВЫБЕРИТЕ ПРОЕКТ</span>
+              <div class="map-direction-tabs" id="map-direction-tabs" role="group" aria-label="Направление инициативы"></div>
+              <div class="map-measure-palette" id="map-measure-palette" role="group" aria-label="Инициативы направления"></div>
+              <details class="map-all-measures"><summary>Все 14 инициатив <span aria-hidden="true">⌄</span></summary><label class="screen-reader-only" for="map-measure">Выбрать любую инициативу</label><select id="map-measure" class="map-select"></select></details>
+              <article class="map-measure-preview" id="map-measure-preview"></article>
+              <label class="map-preview-toggle"><input type="checkbox" id="map-preview-toggle" checked /> Показать эскиз на карте</label>
+              </div>
+              <div class="map-builder-actions">
+                <p class="map-candidate-status" id="map-candidate-status" role="status" aria-live="polite"></p><button id="map-retry-check" class="text-button" type="button" hidden>Повторить проверку ↻</button>
+                <p class="map-completion-hint" id="map-completion-hint" hidden></p>
+                <button id="map-add-button" class="primary-button" type="button">Добавить на карту ＋</button>
+                <button id="map-remove-button" class="outline-button" type="button" hidden>Убрать из плана ×</button>
+                <button id="map-show-project" class="text-button" type="button" hidden>Показать проект на карте ↑</button>
+                <p class="map-action-status" id="map-action-status" role="status" aria-live="polite"></p>
+                <div class="map-plan-summary"><span>В плане <strong id="map-plan-count">0 / 5</strong></span><span>Бюджет <strong id="map-plan-budget">0 / 100</strong></span></div>
+                <div class="map-budget-meter" aria-hidden="true"><span id="map-budget-current"></span><span id="map-budget-preview"></span></div>
+                <button id="map-calculate-button" class="outline-button" type="button" disabled>Рассчитать сценарий ↗</button>
+                <p class="map-score-note" id="map-score-note">Баллы на карте — исходные. Добавьте пять мер и рассчитайте результат.</p>
+              </div>
+            </aside>
+          </div>
+        </section>
 
         <section class="planning-section" aria-labelledby="planning-title">
           <div class="section-heading"><div><span class="eyebrow">02 / ПЕРЕЙДИТЕ ОТ ПРОБЛЕМ К РЕШЕНИЯМ</span><h2 id="planning-title">Соберите план действий</h2></div><span class="step-counter" id="step-label">0 из 5 решений</span></div>

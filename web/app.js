@@ -6,6 +6,8 @@ const state = {
   report: null,
   loading: false,
   adding: false,
+  addRequestId: 0,
+  addController: null,
   selectionsVersion: 0,
   draftDistricts: {},
   validationRequest: 0,
@@ -18,6 +20,20 @@ const state = {
   savedPlanLoading: false,
   savedPlanError: '',
   savedPlanRequest: 0,
+  cityMap: null,
+  mapMeasure: 'M3',
+  mapZoomed: false,
+  mapMessage: '',
+  mapMessageContext: '',
+  mapView: 'plan',
+  mapLayer: 'projects',
+  mapPreview: true,
+  mapMotionPaused: false,
+  mapZoom: 1,
+  mapCandidate: null,
+  mapCandidateRequest: 0,
+  mapCandidateController: null,
+  mapExpanded: false,
 };
 
 const STORAGE_KEY = 'akim-simulator-selections-v1';
@@ -76,11 +92,12 @@ function showToast(message) {
   showToast.timeout = window.setTimeout(() => toast.classList.remove('visible'), 3400);
 }
 
-async function api(path, body) {
+async function api(path, body, options = {}) {
   const response = await fetch(path, {
     method: body ? 'POST' : 'GET',
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,
+    signal: options.signal,
   });
   const data = await response.json();
   if (!response.ok) {
@@ -229,6 +246,296 @@ function directionIcon(direction) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[direction] || paths.services}</svg>`;
 }
 
+const MAP_PROJECT_DESCRIPTIONS = {
+  M1: 'На карте появится автобусная полоса с движущимся автобусом.',
+  M2: 'Умные светофоры появятся во всех пяти районах.',
+  M3: 'Появятся рельсы и станции, а по условной линии поедет поезд ЛРТ.',
+  M4: 'В выбранном районе вырастут деревья и появится новый сквер.',
+  M5: 'Дома выбранного района получат зелёные отметки чистого топлива.',
+  M6: 'Во всех районах вырастут зелёные ветрозащитные полосы.',
+  M7: 'В районе появится новая школа с детским садом.',
+  M8: 'На карте появится центр семейного здоровья.',
+  M9: 'Во дворе появится спортивная площадка.',
+  M10: 'На улицах появятся фонари с освещением и камеры.',
+  M11: 'Появятся обозначенные переходы и школьные зоны.',
+  M12: 'Во всех районах появятся значки обращений жителей.',
+  M13: 'Появятся обновлённые участки коммунальных сетей.',
+  M14: 'Во всех районах появятся аварийные бригады.',
+};
+
+function selectMapDistrict(districtId) {
+  if (!districtById(districtId)) return;
+  state.activeDistrict = districtId;
+  state.mapMessage = '';
+  $$('#baseline-scores button').forEach((card) => card.setAttribute('aria-pressed', String(card.dataset.baselineDistrict === districtId)));
+  $$('.baseline-profile').forEach((profile) => { profile.hidden = profile.dataset.districtProfile !== districtId; });
+  if (state.mapZoomed) state.cityMap?.focusDistrict(districtId);
+  renderCityMap();
+}
+
+function selectMapProject(measureId, districtId) {
+  if (!measureById(measureId)) return;
+  state.mapMeasure = measureId;
+  state.mapMessage = '';
+  if (districtById(districtId)) selectMapDistrict(districtId);
+  else renderCityMap();
+  const target = $(`[data-map-pick="${measureId}"]`);
+  target?.focus({ preventScroll: true });
+  if (window.matchMedia('(max-width: 1050px)').matches) $('#map-builder').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+const MAP_SHORT_NAMES = {
+  M1: 'Автобусные полосы', M2: 'Умные светофоры', M3: 'Линия ЛРТ',
+  M4: 'Парк или сквер', M5: 'Чистое топливо', M6: 'Зелёные полосы',
+  M7: 'Школа и детсад', M8: 'Семейный медцентр', M9: 'Спорт-хабы',
+  M10: 'Свет и камеры', M11: 'Безопасные переходы', M12: 'Обращения жителей',
+  M13: 'Сети ЖКХ', M14: 'Аварийные бригады',
+};
+
+function chooseMapMeasure(measureId) {
+  if (!measureById(measureId)) return;
+  state.mapMeasure = measureId;
+  state.mapMessage = '';
+  renderCityMap();
+}
+
+function mapCandidateKey() {
+  const measure = measureById(state.mapMeasure);
+  return `${state.selectionsVersion}:${measure.id}:${measure.type === 'city' ? 'city' : state.activeDistrict}`;
+}
+
+function checkMapCandidate() {
+  const key = mapCandidateKey();
+  if (state.mapCandidate?.key === key) return;
+  const measure = measureById(state.mapMeasure);
+  const request = ++state.mapCandidateRequest;
+  state.mapCandidateController?.abort();
+  state.mapCandidateController = null;
+  if (state.selections.some((choice) => choice.measure_id === measure.id)) {
+    state.mapCandidate = { key, status: 'selected' };
+    return;
+  }
+  if (state.selections.length >= state.config.required_selections) {
+    state.mapCandidate = { key, status: 'full' };
+    return;
+  }
+  state.mapCandidate = { key, status: 'loading' };
+  const controller = new AbortController();
+  state.mapCandidateController = controller;
+  const timeout = window.setTimeout(() => controller.abort(), 10000);
+  const candidate = { measure_id: measure.id, district_id: measure.type === 'city' ? null : state.activeDistrict };
+  // The ordinary server validator owns every rule, including incompatibilities.
+  // Preview requests never alter the plan, the report, or trigger AI analysis.
+  api('/api/validate', { selections: [...state.selections, candidate] }, { signal: controller.signal }).then((validation) => {
+    if (request !== state.mapCandidateRequest || key !== mapCandidateKey()) return;
+    state.mapCandidate = { key, status: 'checked', validation };
+    renderMapControls();
+    updateMapScene();
+  }).catch((error) => {
+    if (request !== state.mapCandidateRequest || key !== mapCandidateKey()) return;
+    state.mapCandidate = { key, status: 'error', message: error.message };
+    renderMapControls();
+    updateMapScene();
+  }).finally(() => window.clearTimeout(timeout));
+}
+
+function updateMapScene() {
+  if (!state.cityMap) return;
+  const measure = measureById(state.mapMeasure);
+  const preview = state.mapPreview && state.mapView === 'plan' && state.mapCandidate?.validation?.valid
+    ? { measure_id: measure.id, district_id: measure.type === 'city' ? null : state.activeDistrict } : null;
+  state.cityMap.update({
+    selections: state.selections, activeDistrict: state.activeDistrict, report: state.report,
+    viewMode: state.mapView, layer: state.mapLayer, activeMeasure: state.mapMeasure,
+    motionPaused: state.mapMotionPaused, preview,
+  });
+}
+
+function renderMapViewport() {
+  $('#map-zoom-label').textContent = `${Math.round(state.mapZoom * 100)}%`;
+  $('#map-zoom-out').disabled = state.mapZoom <= 1.01;
+  $('#map-zoom-in').disabled = state.mapZoom >= 2.99;
+  $('#map-focus-button').setAttribute('aria-pressed', String(state.mapZoomed));
+  $('#map-focus-button').textContent = state.mapZoomed ? 'Район крупно ◎' : 'К району ◎';
+}
+
+function initCityMap() {
+  $('#map-district').innerHTML = state.config.districts.map((district) => `<option value="${escapeHtml(district.id)}">${escapeHtml(district.name)}</option>`).join('');
+  $('#map-measure').innerHTML = allDirections().map(([id, label]) => `<optgroup label="${escapeHtml(label)}">${state.config.measures.filter((measure) => measure.direction === id).map((measure) => `<option value="${escapeHtml(measure.id)}">${escapeHtml(measure.name)} · ${measure.cost} ед.</option>`).join('')}</optgroup>`).join('');
+  state.cityMap = window.createAstanaMap($('#astana-map'), state.config, {
+    onDistrictSelect: selectMapDistrict,
+    onProjectSelect: ({ measureId, districtId }) => selectMapProject(measureId, districtId),
+    onViewportChange: ({ zoom, focusedDistrict }) => {
+      state.mapZoom = zoom;
+      state.mapZoomed = !!focusedDistrict;
+      renderMapViewport();
+    },
+  });
+  state.mapZoomed = window.matchMedia('(max-width: 520px)').matches;
+  if (state.mapZoomed) state.cityMap.focusDistrict(state.activeDistrict);
+  $('#map-projects-drawer').open = !window.matchMedia('(max-width: 1050px)').matches;
+  window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', renderMapControls);
+  $('#city-map-section').hidden = false;
+}
+
+function renderMapControls() {
+  if (!state.cityMap) return;
+  const district = districtById(state.activeDistrict);
+  const measure = measureById(state.mapMeasure);
+  const selected = state.selections.find((choice) => choice.measure_id === measure.id);
+  const selectedPlace = selected?.district_id ? districtById(selected.district_id).name : 'весь город';
+  const showingReport = state.report && state.mapView === 'plan';
+  const districtReport = (showingReport ? state.report : state.config.baseline).districts.find((item) => item.id === district.id);
+  $('#map-district').value = district.id;
+  $('#map-measure').value = measure.id;
+  $('#map-district-profile').textContent = `На старте: ${district.profile}`;
+  $('#map-district-score').textContent = formatScore(districtReport.score_after);
+  $('#map-district-score-label').textContent = showingReport ? 'Балл после плана' : 'Исходный балл';
+  $('#map-district-delta').hidden = !showingReport;
+  $('#map-district-delta').textContent = showingReport ? signed(districtReport.score_delta) : '';
+  $('#map-mode').textContent = state.mapView === 'baseline' ? 'ДО ИЗМЕНЕНИЙ' : state.report ? 'ПЛАН РАССЧИТАН' : 'ЭСКИЗ ПЛАНА';
+  $('#map-mode').dataset.mode = state.mapView === 'baseline' ? 'baseline' : state.report ? 'calculated' : 'draft';
+  $('#map-score-note').textContent = showingReport ? `После расчёта · Score города ${formatScore(state.report.score)}. Переключите на исходный город, чтобы сравнить.` : state.mapView === 'baseline' ? 'Исходный город: проекты скрыты, ваш план сохранён.' : 'План ещё не рассчитан. На карте — исходные баллы.';
+  $$('[data-map-view]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.mapView === state.mapView)));
+  $$('[data-map-layer]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.mapLayer === state.mapLayer)));
+  $('#map-project-legend').hidden = state.mapLayer !== 'projects';
+  $('#map-score-legend').hidden = state.mapLayer !== 'scores';
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  $('#map-motion-button').disabled = reducedMotion;
+  $('#map-motion-button').setAttribute('aria-pressed', String(state.mapMotionPaused || reducedMotion));
+  $('#map-motion-button').textContent = reducedMotion ? 'Без анимаций' : state.mapMotionPaused ? '▷ Движение' : 'Ⅱ Пауза';
+  $('#map-motion-button').setAttribute('aria-label', reducedMotion ? 'Анимации отключены настройкой устройства' : state.mapMotionPaused ? 'Продолжить анимации' : 'Приостановить анимации');
+  renderMapViewport();
+  const priorities = [...districtReport.indicators].sort((a, b) => a.after - b.after).slice(0, 2);
+  $('#map-district-priorities').innerHTML = priorities.map((item) => `<span>${escapeHtml(item.label)} <strong>${Number(item.after).toFixed(1)}</strong></span>`).join('');
+  const directions = { transport: 'Транспорт', ecology: 'Экология', social: 'Социум', safety: 'Безопасность', services: 'Сервисы' };
+  const directionKey = measure.direction;
+  // Keep focused palette buttons alive across validation responses.
+  if (!$('#map-direction-tabs').children.length) {
+    $('#map-direction-tabs').innerHTML = allDirections().map(([id, label]) => `<button type="button" data-map-direction="${id}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}" aria-pressed="false">${directionIcon(id)}<span>${directions[id]}</span></button>`).join('');
+  }
+  $$('[data-map-direction]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.mapDirection === directionKey)));
+  const palette = $('#map-measure-palette');
+  if (palette.dataset.direction !== directionKey) {
+    palette.dataset.direction = directionKey;
+    palette.innerHTML = state.config.measures.filter((item) => item.direction === directionKey).map((item) => `<button type="button" data-map-pick="${item.id}" aria-pressed="false"><span class="map-pick-code">${item.id}</span><span>${escapeHtml(MAP_SHORT_NAMES[item.id])}<small>${item.type === 'city' ? 'Весь город' : 'В выбранном районе'}</small></span><strong>${item.cost}<small> ед.</small></strong><span class="map-pick-check" aria-hidden="true"></span></button>`).join('');
+  }
+  $$('[data-map-pick]').forEach((button) => {
+    button.setAttribute('aria-pressed', String(button.dataset.mapPick === measure.id));
+    $('.map-pick-check', button).textContent = state.selections.some((choice) => choice.measure_id === button.dataset.mapPick) ? '✓' : '';
+  });
+  const effects = Object.entries(measure.realised_effects || measure.effects).map(([id, amount]) => {
+    const indicator = state.config.indicators.find((item) => item.id === id);
+    return `<span class="impact-chip ${amount < 0 ? 'negative' : ''}">${escapeHtml(indicator?.label || id)} <strong>${signed(amount, 2)}</strong></span>`;
+  }).join('');
+  $('#map-measure-preview').dataset.direction = measure.direction;
+  const previewKey = `${measure.id}:${selected ? selectedPlace : district.id}:${!!selected}`;
+  if ($('#map-measure-preview').dataset.previewKey !== previewKey) {
+    const effectsOpen = $('#map-effects-details')?.open || false;
+    $('#map-measure-preview').dataset.previewKey = previewKey;
+    $('#map-measure-preview').innerHTML = `<div class="map-measure-top"><span class="category-icon">${directionIcon(measure.direction)}</span><span>${escapeHtml(measure.id)} · ${escapeHtml(measure.direction_label)}</span><strong>${measure.cost}<small> ед.</small></strong></div><h3>${escapeHtml(measure.name)}</h3><p class="map-target-place">${selected ? `В вашем плане: ${escapeHtml(selectedPlace)}` : measure.type === 'city' ? 'Во всех пяти районах · одна мера' : `Место проекта: ${escapeHtml(district.name)}`}</p><details id="map-effects-details" ${effectsOpen ? 'open' : ''}><summary>Эффекты и сроки <span>Лаг ${measure.lag} кв. ⌄</span></summary><p>${escapeHtml(MAP_PROJECT_DESCRIPTIONS[measure.id] || measure.description)}</p><div class="map-measure-effects">${effects}</div><p class="map-effect-caption">Эффекты за восемь кварталов с учётом лага. Бонусы синергии учитываются при расчёте.</p></details>`;
+  }
+  const add = $('#map-add-button');
+  add.hidden = !!selected;
+  const candidate = state.mapCandidate;
+  const candidateValid = candidate?.key === mapCandidateKey() && candidate?.validation?.valid;
+  add.disabled = state.adding || !candidateValid;
+  add.textContent = state.adding || candidate?.status === 'loading' ? 'Проверяем правила…' : candidate?.status === 'full' ? 'В плане уже пять мер' : candidate?.validation?.valid === false ? 'Недоступно для этого плана' : `Добавить за ${measure.cost} ед. ＋`;
+  const candidateStatus = $('#map-candidate-status');
+  candidateStatus.dataset.status = candidate?.status === 'checked' && !candidateValid ? 'invalid' : candidate?.status || 'loading';
+  candidateStatus.textContent = candidate?.status === 'selected' ? `В плане: ${selectedPlace}.` : candidate?.status === 'full' ? 'Удалите один проект, чтобы выбрать другой.' : candidate?.status === 'error' ? 'Не удалось проверить проект. Повторите проверку.' : candidate?.status === 'loading' ? 'Проверяем бюджет и совместимость…' : candidateValid ? `✓ Можно добавить · бюджет станет ${candidate.validation.total_cost} / ${state.config.budget}` : (candidate?.validation?.errors || []).join(' ');
+  const remainingSlots = state.config.required_selections - state.selections.length - 1;
+  const excluded = new Set([...state.selections.map((choice) => choice.measure_id), measure.id]);
+  const cheapestRest = state.config.measures.filter((item) => !excluded.has(item.id)).map((item) => item.cost).sort((a, b) => a - b).slice(0, Math.max(0, remainingSlots)).reduce((sum, cost) => sum + cost, 0);
+  const budgetDeadEnd = candidateValid && remainingSlots > 0 && candidate.validation.budget_remaining < cheapestRest;
+  $('#map-completion-hint').hidden = !budgetDeadEnd;
+  $('#map-completion-hint').textContent = budgetDeadEnd ? `После добавления останется ${candidate.validation.budget_remaining} ед. на ${remainingSlots} ${russianCount(remainingSlots, ['решение', 'решения', 'решений'])}. Свободные меры для этих мест стоят минимум ${cheapestRest} ед. Чтобы завершить план, понадобится заменить часть решений.` : '';
+  $('#map-retry-check').hidden = candidate?.status !== 'error';
+  $('#map-remove-button').hidden = !selected;
+  $('#map-remove-button').textContent = selected ? `Убрать из плана · ${selectedPlace} ×` : 'Убрать из плана ×';
+  $('#map-show-project').hidden = !selected;
+  $('.map-preview-toggle').hidden = !!selected;
+  const messageContext = `${measure.id}:${measure.type === 'city' ? 'city' : state.activeDistrict}`;
+  $('#map-action-status').textContent = state.mapMessageContext === messageContext ? state.mapMessage : '';
+  const cost = state.validation?.total_cost ?? state.selections.reduce((sum, choice) => sum + measureById(choice.measure_id).cost, 0);
+  $('#map-plan-count').textContent = `${state.selections.length} / ${state.config.required_selections}`;
+  $('#map-toolbar-count').textContent = `${state.selections.length}/${state.config.required_selections}`;
+  $('#map-drawer-count').textContent = `${state.selections.length} / ${state.config.required_selections}`;
+  $('#map-plan-progress').innerHTML = Array.from({ length: state.config.required_selections }, (_, index) => `<span class="${index < state.selections.length ? 'filled' : ''}">${index < state.selections.length ? '✓' : index + 1}</span>`).join('');
+  $('#map-budget-current').style.width = `${Math.min(100, cost / state.config.budget * 100)}%`;
+  $('#map-budget-preview').style.width = `${!selected && candidateValid ? Math.min(measure.cost, state.config.budget - cost) / state.config.budget * 100 : 0}%`;
+  $('#map-plan-budget').textContent = `${cost} / ${state.config.budget}`;
+  $('#map-calculate-button').disabled = state.loading || (!state.report && !state.validation?.ready);
+  $('#map-calculate-button').textContent = state.loading ? 'Считаем последствия…' : state.report ? 'Открыть результат ↗' : 'Рассчитать сценарий ↗';
+}
+
+function renderCityMap() {
+  if (!state.cityMap) return;
+  checkMapCandidate();
+  updateMapScene();
+  renderMapControls();
+  $('#map-selected-projects').innerHTML = state.selections.length ? state.selections.map((choice) => {
+    const measure = measureById(choice.measure_id);
+    const place = choice.district_id ? districtById(choice.district_id).name : 'Весь город';
+    return `<button class="map-project-chip" type="button" data-map-open-measure="${escapeHtml(measure.id)}" data-map-open-district="${escapeHtml(choice.district_id || '')}" data-direction="${escapeHtml(measure.direction)}"><span class="category-icon">${directionIcon(measure.direction)}</span><span><strong>${escapeHtml(measure.name)}</strong><small>${escapeHtml(place)}</small></span><span aria-hidden="true">↗</span></button>`;
+  }).join('') : '<p class="map-empty-note">Пока здесь только город. Добавьте первую инициативу — и карта оживёт.</p>';
+}
+
+const mapInertElements = new Map();
+let mapPreviousFocus = null;
+
+function setMapExpanded(expanded) {
+  if (state.mapExpanded === expanded) return;
+  const section = $('#city-map-section');
+  state.mapExpanded = expanded;
+  document.body.classList.toggle('map-expanded', expanded);
+  $('#map-expand-button').setAttribute('aria-expanded', String(expanded));
+  $('#map-expand-button').textContent = expanded ? 'Закрыть карту ↙' : 'Развернуть карту ⛶';
+  if (expanded) {
+    mapPreviousFocus = document.activeElement;
+    section.setAttribute('role', 'dialog');
+    section.setAttribute('aria-modal', 'true');
+    let current = section;
+    while (current.parentElement) {
+      for (const sibling of current.parentElement.children) {
+        if (sibling !== current) {
+          mapInertElements.set(sibling, sibling.inert);
+          sibling.inert = true;
+        }
+      }
+      current = current.parentElement;
+      if (current === document.body) break;
+    }
+    $('#map-expand-button').focus({ preventScroll: true });
+  } else {
+    section.removeAttribute('role');
+    section.removeAttribute('aria-modal');
+    mapInertElements.forEach((inert, element) => { element.inert = inert; });
+    mapInertElements.clear();
+    mapPreviousFocus?.focus({ preventScroll: true });
+  }
+}
+
+function showCurrentMapProject() {
+  const choice = state.selections.find((item) => item.measure_id === state.mapMeasure);
+  if (!choice) return;
+  state.mapView = 'plan';
+  state.mapLayer = 'projects';
+  if (choice.district_id) selectMapDistrict(choice.district_id);
+  else renderCityMap();
+  state.cityMap.focusDistrict(choice.district_id || null);
+  $(`[data-map-project="${choice.measure_id}"]`)?.focus({ preventScroll: true });
+  $('#astana-map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function cancelPendingAdd() {
+  state.addRequestId++;
+  state.addController?.abort();
+  state.addController = null;
+  state.adding = false;
+  $('#measure-list').setAttribute('aria-busy', 'false');
+}
+
 function renderFilters() {
   const directions = allDirections();
   const options = [['all', 'Все меры'], ...directions];
@@ -259,9 +566,9 @@ function renderCatalog() {
       : '<span class="measure-type">◎ Во всех районах</span>';
     const selection = state.selections.find((choice) => choice.measure_id === measure.id);
     const selectedPlace = selection?.district_id ? districtById(selection.district_id)?.name : 'Весь город';
-    return `<article class="measure-card ${selected ? 'is-selected' : ''} ${full && !selected ? 'is-blocked' : ''}" data-direction="${escapeHtml(measure.direction)}">
+    return `<article class="measure-card ${selected ? 'is-selected' : ''} ${full && !selected ? 'is-blocked' : ''}" data-direction="${escapeHtml(measure.direction)}" data-measure-id="${escapeHtml(measure.id)}">
         <div class="measure-topline"><div class="category-identity"><span class="category-icon">${directionIcon(measure.direction)}</span><div><span class="area-tag">${escapeHtml(measure.direction_label)}</span><span class="measure-id">${escapeHtml(measure.id)}</span></div></div><div class="measure-cost"><strong>${measure.cost}</strong><span>ед.</span></div></div>
-        <h4>${escapeHtml(measure.name)}</h4>
+        <h4 tabindex="-1">${escapeHtml(measure.name)}</h4>
         <p class="measure-description">${escapeHtml(measure.description)}</p>
         <div class="measure-meta">${effects}</div>
         <div class="measure-timing">◷ Лаг ${measure.lag} кв. <span>·</span> ${measure.type === 'district' ? 'Районный проект' : 'Городской проект'}</div>
@@ -329,6 +636,7 @@ function renderBudgetAndValidation() {
   mobileCalculate.disabled = state.loading || (!validation.ready && !state.report);
   mobileCalculate.innerHTML = `${state.loading ? 'Считаем…' : state.report ? 'К результату' : 'Рассчитать'} <span aria-hidden="true">↗</span>`;
   $('#save-comparison-button').disabled = !state.report || state.loading;
+  renderMapControls();
 }
 
 function renderScoreBreakdown(report) {
@@ -695,6 +1003,7 @@ async function submitTeamScenario(event) {
 }
 
 async function loadPlan(selections, message, target = '#catalog-title') {
+  cancelPendingAdd();
   state.selections = selections.map((choice) => ({
     measure_id: choice.measure_id,
     district_id: choice.district_id ?? null,
@@ -705,6 +1014,8 @@ async function loadPlan(selections, message, target = '#catalog-title') {
   state.report = null;
   state.validation = null;
   state.filter = 'all';
+  state.mapMessage = '';
+  state.mapView = 'plan';
   state.draftDistricts = Object.fromEntries(state.selections.filter((choice) => choice.district_id).map((choice) => [choice.measure_id, choice.district_id]));
   $('#plan-choices').open = true;
   saveSelections();
@@ -721,6 +1032,7 @@ async function useTeamPlan(index) {
 }
 
 function render() {
+  renderCityMap();
   renderSelections();
   renderFilters();
   renderCatalog();
@@ -751,14 +1063,14 @@ async function refreshValidation() {
   renderBudgetAndValidation();
 }
 
-async function addMeasure(measureId) {
+async function addMeasure(measureId, districtOverride) {
   const measure = measureById(measureId);
   if (!measure || state.adding || state.selections.some((item) => item.measure_id === measureId)) return;
   if (state.selections.length >= state.config.required_selections) {
     showToast('В плане уже пять решений. Удалите одно, чтобы выбрать другое.');
     return;
   }
-  const districtId = measure.type === 'district' ? state.draftDistricts[measureId] : null;
+  const districtId = measure.type === 'district' ? districtOverride ?? state.draftDistricts[measureId] : null;
   if (measure.type === 'district' && !districtId) {
     showToast('Сначала выберите район для этой меры.');
     const select = $(`[data-district-select="${measureId}"]`);
@@ -767,16 +1079,24 @@ async function addMeasure(measureId) {
   }
   const proposed = [...state.selections, { measure_id: measureId, district_id: districtId || null }];
   const version = state.selectionsVersion;
+  const request = ++state.addRequestId;
+  const controller = new AbortController();
+  state.addController = controller;
+  const timeout = window.setTimeout(() => controller.abort(), 10000);
   state.adding = true;
+  state.mapMessage = '';
+  renderMapControls();
   $('#measure-list').setAttribute('aria-busy', 'true');
   $$('[data-add]').forEach((button) => { button.disabled = true; });
   const addingButton = $(`[data-add="${measureId}"]`);
   if (addingButton) addingButton.textContent = 'Проверяем…';
   try {
-    const validation = await api('/api/validate', { selections: proposed });
-    if (version !== state.selectionsVersion) return;
+    const validation = await api('/api/validate', { selections: proposed }, { signal: controller.signal });
+    if (request !== state.addRequestId || version !== state.selectionsVersion) return;
     if (!validation.valid) {
-      showToast(validation.errors[0] || 'Этот набор решений недопустим.');
+      state.mapMessage = validation.errors[0] || 'Этот набор решений недопустим.';
+      state.mapMessageContext = `${measureId}:${districtId || 'city'}`;
+      showToast(state.mapMessage);
       return;
     }
     state.validationRequest++;
@@ -784,21 +1104,36 @@ async function addMeasure(measureId) {
     state.selections = proposed;
     state.validation = validation;
     state.report = null;
+    state.mapView = 'plan';
+    if (districtId) state.draftDistricts[measureId] = districtId;
+    state.mapMessage = `Добавлено: ${measure.name} · ${districtId ? districtById(districtId).name : 'весь город'}.`;
+    state.mapMessageContext = `${measureId}:${districtId || 'city'}`;
     saveSelections();
     render();
+    return true;
   } catch (error) {
-    if (version === state.selectionsVersion) showToast(error.message || 'Не удалось проверить новую меру.');
+    if (request === state.addRequestId && version === state.selectionsVersion) {
+      state.mapMessage = error.name === 'AbortError' ? 'Проверка заняла слишком много времени. Попробуйте снова.' : error.message || 'Не удалось проверить новую меру.';
+      state.mapMessageContext = `${measureId}:${districtId || 'city'}`;
+      showToast(state.mapMessage);
+    }
   } finally {
-    state.adding = false;
-    $('#measure-list').setAttribute('aria-busy', 'false');
-    $$('[data-add]').forEach((button) => {
-      button.disabled = state.selections.length >= state.config.required_selections;
-      button.innerHTML = '<span class="add-icon">＋</span> Добавить';
-    });
+    window.clearTimeout(timeout);
+    if (request === state.addRequestId) {
+      state.adding = false;
+      state.addController = null;
+      renderMapControls();
+      $('#measure-list').setAttribute('aria-busy', 'false');
+      $$('[data-add]').forEach((button) => {
+        button.disabled = state.selections.length >= state.config.required_selections;
+        button.innerHTML = '<span class="add-icon">＋</span> Добавить';
+      });
+    }
   }
 }
 
 async function removeMeasure(measureId) {
+  cancelPendingAdd();
   const removed = state.selections.find((item) => item.measure_id === measureId);
   if (removed?.district_id) state.draftDistricts[measureId] = removed.district_id;
   state.validationRequest++;
@@ -806,6 +1141,7 @@ async function removeMeasure(measureId) {
   state.selections = state.selections.filter((item) => item.measure_id !== measureId);
   state.validation = null;
   state.report = null;
+  state.mapMessage = '';
   saveSelections();
   render();
   await refreshValidation();
@@ -822,6 +1158,9 @@ async function calculateScenario() {
     const report = await api('/api/analyze', { selections });
     if (version !== state.selectionsVersion) return;
     state.report = report;
+    setMapExpanded(false);
+    state.mapView = 'plan';
+    renderCityMap();
     renderResults();
     renderPersonalComparison();
     renderLeaderboard();
@@ -851,6 +1190,7 @@ async function useAlternative(index) {
 
 function resetScenario() {
   if (!state.config) return;
+  cancelPendingAdd();
   state.validationRequest++;
   state.selectionsVersion++;
   state.selections = [];
@@ -858,6 +1198,8 @@ function resetScenario() {
   state.report = null;
   state.filter = 'all';
   state.draftDistricts = {};
+  state.mapMessage = '';
+  state.mapView = 'plan';
   saveSelections();
   render();
   refreshValidation();
@@ -894,7 +1236,7 @@ function bindEvents() {
       }
     });
   });
-  const navigationSections = ['top', 'workspace', 'results-panel', 'comparison-board'].map((id) => $(`#${id}`));
+  const navigationSections = ['top', 'city-map-section', 'workspace', 'results-panel', 'comparison-board'].map((id) => $(`#${id}`));
   let navigationQueued = false;
   const updateNavigation = () => {
     navigationQueued = false;
@@ -921,21 +1263,110 @@ function bindEvents() {
   $('#baseline-scores').addEventListener('click', (event) => {
     const button = event.target.closest('[data-baseline-district]');
     if (!button) return;
-    state.activeDistrict = button.dataset.baselineDistrict;
-    $$('#baseline-scores button').forEach((card) => card.setAttribute('aria-pressed', String(card === button)));
-    $$('.baseline-profile').forEach((profile) => {
-      profile.hidden = profile.dataset.districtProfile !== state.activeDistrict;
-    });
+    selectMapDistrict(button.dataset.baselineDistrict);
     $('.baseline-details').open = true;
+  });
+  $('#map-district').addEventListener('change', (event) => selectMapDistrict(event.target.value));
+  $('#map-measure').addEventListener('change', (event) => chooseMapMeasure(event.target.value));
+  $('#map-direction-tabs').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-map-direction]');
+    if (!button) return;
+    const measure = state.config.measures.find((item) => item.direction === button.dataset.mapDirection);
+    if (measure) chooseMapMeasure(measure.id);
+  });
+  $('#map-measure-palette').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-map-pick]');
+    if (button) chooseMapMeasure(button.dataset.mapPick);
+  });
+  $('#map-retry-check').addEventListener('click', () => {
+    state.mapCandidate = null;
+    renderCityMap();
+  });
+  $$('[data-map-view]').forEach((button) => button.addEventListener('click', () => {
+    state.mapView = button.dataset.mapView;
+    renderCityMap();
+  }));
+  $$('[data-map-layer]').forEach((button) => button.addEventListener('click', () => {
+    state.mapLayer = button.dataset.mapLayer;
+    renderCityMap();
+  }));
+  $('#map-preview-toggle').addEventListener('change', (event) => {
+    state.mapPreview = event.target.checked;
+    updateMapScene();
+  });
+  $('#map-motion-button').addEventListener('click', () => {
+    state.mapMotionPaused = !state.mapMotionPaused;
+    updateMapScene();
+    renderMapControls();
+  });
+  $('#map-zoom-in').addEventListener('click', () => state.cityMap?.zoomBy(1.25));
+  $('#map-zoom-out').addEventListener('click', () => state.cityMap?.zoomBy(0.8));
+  $('#map-expand-button').addEventListener('click', () => setMapExpanded(!state.mapExpanded));
+  $('.map-catalog-link').addEventListener('click', () => setMapExpanded(false));
+  document.addEventListener('keydown', (event) => {
+    if (!state.mapExpanded) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setMapExpanded(false);
+    } else if (event.key === 'Tab') {
+      const focusable = $$('button:not(:disabled), a[href], select, input, summary, [tabindex="0"]', $('#city-map-section')).filter((element) => element.getClientRects().length && !element.closest('[hidden]'));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault(); last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first?.focus();
+      }
+    }
+  });
+  $('#map-add-button').addEventListener('click', async () => {
+    const measureId = state.mapMeasure;
+    const added = await addMeasure(measureId, state.activeDistrict);
+    if (added && state.mapMeasure === measureId && state.selections.some((choice) => choice.measure_id === measureId)) {
+      if (window.matchMedia('(max-width: 1050px)').matches) showCurrentMapProject();
+      else $('#map-remove-button').focus({ preventScroll: true });
+    }
+  });
+  $('#map-show-project').addEventListener('click', showCurrentMapProject);
+  $('#map-to-builder').addEventListener('click', () => {
+    $('#map-builder').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $(`[data-map-pick="${state.mapMeasure}"]`)?.focus({ preventScroll: true });
+  });
+  $('#map-remove-button').addEventListener('click', async () => {
+    const measureId = state.mapMeasure;
+    await removeMeasure(measureId);
+    if (state.mapMeasure === measureId) $('#map-add-button').focus({ preventScroll: true });
+  });
+  $('#map-selected-projects').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-map-open-measure]');
+    if (button) selectMapProject(button.dataset.mapOpenMeasure, button.dataset.mapOpenDistrict);
+  });
+  $('#map-focus-button').addEventListener('click', () => {
+    state.cityMap?.focusDistrict(state.mapZoomed ? null : state.activeDistrict);
+    renderMapControls();
+  });
+  $('#map-reset-view').addEventListener('click', () => {
+    state.mapZoomed = false;
+    state.cityMap?.focusDistrict(null);
+    renderMapControls();
+  });
+  $('#map-calculate-button').addEventListener('click', () => {
+    if (state.report) {
+      setMapExpanded(false);
+      $('#results-title').focus({ preventScroll: true });
+      $('#results-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else calculateScenario();
   });
   $('#team-name').addEventListener('input', () => {
     const token = state.teamTokens[teamKey($('#team-name').value)];
     $('#team-code').value = typeof token === 'string' ? token : '';
     $('#team-save-status').textContent = '';
   });
-  $('#measure-list').addEventListener('click', (event) => {
+  $('#measure-list').addEventListener('click', async (event) => {
     const button = event.target.closest('[data-add]');
-    if (button && !button.disabled) addMeasure(button.dataset.add);
+    if (!button || button.disabled) return;
+    const measureId = button.dataset.add;
+    if (await addMeasure(measureId)) $(`[data-measure-id="${measureId}"] h4`)?.focus({ preventScroll: true });
   });
 
   $('#selection-slots').addEventListener('click', (event) => {
@@ -1021,6 +1452,7 @@ async function init() {
     $('#plan-choices').open = !window.matchMedia('(max-width: 520px)').matches || state.selections.length > 0;
     renderHero();
     renderBaseline();
+    initCityMap();
     $('#workspace').hidden = false;
     $('#comparison-board').hidden = false;
     $('#mobile-dock').hidden = false;
