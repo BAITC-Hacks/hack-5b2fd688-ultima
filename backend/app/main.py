@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .ai import explain
 from .engine import baseline_report, public_config, simulate, validate_choices
+from .recommender import recommend_alternatives
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -69,7 +70,14 @@ def analyze_scenario(request: SelectionRequest) -> Any:
     if not validation["valid"]:
         return JSONResponse(status_code=422, content={"valid": False, **validation})
     report = simulate(request.selections)
-    return {"valid": True, **report, "explanation": explain(report)}
+    recommendations = recommend_alternatives(request.selections, current_report=report)
+    return {
+        "valid": True,
+        **report,
+        "alternative_scenarios": recommendations["alternatives"],
+        "recommendation_message": recommendations["message"],
+        "explanation": explain(report, recommendations["alternatives"]),
+    }
 
 
 app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")

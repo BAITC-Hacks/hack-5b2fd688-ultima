@@ -331,6 +331,9 @@ def _build_report(choices: list[dict[str, Any]]) -> dict[str, Any]:
         "score": result["score"],
         "baseline_score": baseline["score"],
         "score_delta": result["score"] - baseline["score"],
+        "display_score_delta": round(
+            round(result["score"], 2) - round(baseline["score"], 2), 2
+        ),
         "city_average": result["city_average"],
         "baseline_city_average": baseline["city_average"],
         "weakest_district_id": result["weakest_district_id"],

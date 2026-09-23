@@ -233,8 +233,9 @@ function renderResults() {
   $('#result-current').textContent = formatScore(report.score);
   $('#result-baseline').textContent = formatScore(report.baseline_score);
   const delta = $('#result-delta');
-  delta.textContent = `${signed(report.score_delta)} балла`;
-  delta.classList.toggle('negative', report.score_delta < 0);
+  const displayedDelta = report.display_score_delta ?? (Number(report.score.toFixed(2)) - Number(report.baseline_score.toFixed(2)));
+  delta.textContent = `${signed(displayedDelta)} балла`;
+  delta.classList.toggle('negative', displayedDelta < 0);
   $('#result-spent').textContent = report.total_cost;
   $('#result-remaining').textContent = report.budget_remaining;
   $('#result-critical').textContent = report.critical_count;
@@ -250,6 +251,18 @@ function renderResults() {
   $('#explanation-recommendations').textContent = recommendations.join(' ');
   $('#explanation-note').hidden = !explanation.note;
   $('#explanation-note').textContent = explanation.note || '';
+
+  const alternatives = report.alternative_scenarios || [];
+  $('#alternative-list').innerHTML = alternatives.length
+    ? alternatives.map((alternative, index) => `<article class="alternative-card">
+        <div class="alternative-rank">0${index + 1}</div>
+        <div class="alternative-main">
+          <p class="alternative-description">${escapeHtml(alternative.description)}</p>
+          <div class="alternative-meta"><span>Score <strong>${formatScore(alternative.score)}</strong></span><span class="alternative-gain">${signed(alternative.display_score_delta ?? alternative.score_delta)} к сценарию</span><span>${alternative.total_cost} / 100 ед.</span><span>Критических: ${alternative.critical_count}</span></div>
+        </div>
+        <button class="alternative-button" type="button" data-use-alternative="${index}">Выбрать план <span aria-hidden="true">↗</span></button>
+      </article>`).join('')
+    : `<div class="alternative-empty"><span aria-hidden="true">✓</span><p>${escapeHtml(report.recommendation_message || 'Среди одиночных замен сценария улучшения не найдено.')}</p><small>Это означает, что ни одна допустимая замена одной меры или района не повысила отображаемый Score.</small></div>`;
 
   $('#district-chart').innerHTML = report.districts.map((district) => {
     const isWeakest = district.id === report.weakest_district_id;
@@ -364,6 +377,22 @@ async function calculateScenario() {
   }
 }
 
+async function useAlternative(index) {
+  const alternative = state.report?.alternative_scenarios?.[index];
+  if (!alternative) return;
+  state.selections = alternative.selections.map((choice) => ({
+    measure_id: choice.measure_id,
+    district_id: choice.district_id ?? null,
+  }));
+  state.report = null;
+  state.validation = null;
+  saveSelections();
+  render();
+  await refreshValidation();
+  showToast('План обновлён. Рассчитайте его, чтобы увидеть итог и новые варианты.');
+  $('#catalog-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function resetScenario() {
   state.selections = [];
   state.validation = null;
@@ -401,6 +430,10 @@ function bindEvents() {
   });
 
   $('#calculate-button').addEventListener('click', calculateScenario);
+  $('#alternative-list').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-use-alternative]');
+    if (button) useAlternative(Number(button.dataset.useAlternative));
+  });
   $('#reset-button').addEventListener('click', resetScenario);
   $('#edit-plan-button').addEventListener('click', () => {
     $('#catalog-title').scrollIntoView({ behavior: 'smooth', block: 'start' });

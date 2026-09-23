@@ -11,7 +11,9 @@ from urllib.request import Request, urlopen
 from .engine import DATA
 
 
-def _fallback_explanation(report: dict[str, Any]) -> dict[str, Any]:
+def _fallback_explanation(
+    report: dict[str, Any], alternatives: list[dict[str, Any]]
+) -> dict[str, Any]:
     strongest = max(report["indicator_changes"], key=lambda item: item["delta"], default=None)
     strengths: list[str] = []
     if strongest:
@@ -59,30 +61,43 @@ def _fallback_explanation(report: dict[str, Any]) -> dict[str, Any]:
             "он не добавляет баллы к Score."
         )
 
+    if alternatives:
+        recommendations = [
+            f"Проверьте вариант «{alternatives[0]['description']}»: модель даёт "
+            f"Score {alternatives[0]['score']:.2f} ({alternatives[0]['display_score_delta']:+.2f} "
+            "к текущему сценарию). Это альтернативный расчёт, а не применённое решение."
+        ]
+    else:
+        recommendations = [
+            "Среди допустимых одиночных замен улучшения нет. Попробуйте изменить несколько мер и сравнить результаты."
+        ]
+
     return {
         "summary": (
             f"Сценарий набрал {report['score']:.2f} из 100 — "
-            f"{report['score_delta']:+.2f} к базовым {report['baseline_score']:.2f}. "
+            f"{report['display_score_delta']:+.2f} к базовым {report['baseline_score']:.2f}. "
             f"Потрачено {report['total_cost']} из {report['budget']} условных единиц."
         ),
         "strengths": strengths[:3],
         "risks": risks[:3],
-        "recommendations": [
-            "Сравните сценарий с заменой одной меры или района: модель учитывает лаги и "
-            "неравномерность результатов между районами."
-        ],
+        "recommendations": recommendations,
     }
 
 
-def _facts_for_model(report: dict[str, Any]) -> dict[str, Any]:
+def _facts_for_model(
+    report: dict[str, Any], alternatives: list[dict[str, Any]]
+) -> dict[str, Any]:
     return {
         "model_version": report["model_version"],
         "budget": report["budget"],
         "spent": report["total_cost"],
         "remaining": report["budget_remaining"],
         "score": report["score"],
+        "score_display": round(report["score"], 2),
         "baseline_score": report["baseline_score"],
-        "score_delta": report["score_delta"],
+        "baseline_score_display": round(report["baseline_score"], 2),
+        "score_delta_exact": report["score_delta"],
+        "score_delta_display": report["display_score_delta"],
         "city_average": report["city_average"],
         "weakest_district": report["weakest_district_name"],
         "critical_count": report["critical_count"],
@@ -108,6 +123,19 @@ def _facts_for_model(report: dict[str, Any]) -> dict[str, Any]:
             for district in report["districts"]
         ],
         "synergies": report["applied_synergies"],
+        "precalculated_alternatives": [
+            {
+                "description": item["description"],
+                "score": item["score"],
+                "score_display": round(item["score"], 2),
+                "score_delta_exact": item["score_delta"],
+                "score_delta_display": item["display_score_delta"],
+                "total_cost": item["total_cost"],
+                "critical_count": item["critical_count"],
+                "weakest_district": item["weakest_district_name"],
+            }
+            for item in alternatives
+        ],
         "indicator_scale": "0–100, higher is better; all values are synthetic.",
         "horizon_quarters": DATA["horizon_quarters"],
     }
@@ -132,9 +160,12 @@ def _normalise_model_response(content: str) -> dict[str, Any]:
     }
 
 
-def explain(report: dict[str, Any]) -> dict[str, Any]:
+def explain(
+    report: dict[str, Any], alternatives: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
     """Ask an OpenAI-compatible Chat Completions endpoint, with a local fallback."""
-    fallback = _fallback_explanation(report)
+    alternatives = alternatives or []
+    fallback = _fallback_explanation(report, alternatives)
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
         return {
@@ -144,14 +175,18 @@ def explain(report: dict[str, Any]) -> dict[str, Any]:
             "note": "AI-ключ не настроен. Показано автоматическое объяснение по рассчитанным данным.",
         }
 
-    facts = _facts_for_model(report)
+    facts = _facts_for_model(report, alternatives)
     system_message = (
         "Ты аналитик симулятора развития города. Все данные синтетические. "
         "Объясняй выборы понятным русским языком и придерживайся переданных фактов. "
         "Не пересчитывай Score, не выводи новые числовые оценки и не делай фактических "
         "утверждений о реальной Астане. Если факта нет во входных данных, не выдумывай его. "
+        "Не предлагай конкретные замены от себя. Если используешь precalculated_alternatives, "
+        "цитируй только переданные Score и дельты и ясно говори, что это прогнозируемые "
+        "альтернативы, которые ещё не применены. Не придумывай новые Score. "
         "Верни только JSON с полями summary (строка), strengths (массив строк), risks "
-        "(массив строк), recommendations (массив строк). В рекомендациях не обещай прирост Score."
+        "(массив строк), recommendations (массив строк). Если готовых альтернатив нет, "
+        "сообщи об этом без выдуманных вариантов."
     )
     request_body = {
         "model": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),

@@ -30,6 +30,7 @@ def test_documented_scenario_matches_reference_score_and_budget() -> None:
     assert report["budget_remaining"] == 5
     assert report["score"] == pytest.approx(56.54307)
     assert report["score_delta"] == pytest.approx(3.98539)
+    assert report["display_score_delta"] == pytest.approx(3.98)
     assert report["critical_count"] == 0
     assert report["applied_synergies"][0]["measures"] == ["M10", "M12"]
     assert report["weakest_district_name"] == "Нура"

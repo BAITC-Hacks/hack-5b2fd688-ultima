@@ -47,6 +47,8 @@ def test_analyze_endpoint_uses_fallback_without_api_key(monkeypatch) -> None:
     assert response.json()["score"] == 56.54307
     assert response.json()["explanation"]["source"] == "rules"
     assert response.json()["explanation"]["status"] == "fallback"
+    assert response.json()["alternative_scenarios"]
+    assert "вариант" in response.json()["explanation"]["recommendations"][0]
 
 
 def test_invalid_scenario_does_not_receive_a_score() -> None:
