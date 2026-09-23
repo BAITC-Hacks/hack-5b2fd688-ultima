@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from .engine import DATA
+from .engine import DATA, DISTRICTS, INDICATORS
 
 
 def _fallback_explanation(
@@ -74,6 +75,23 @@ def _fallback_explanation(
             "Среди допустимых одиночных замен улучшения нет. Попробуйте изменить несколько мер и сравнить результаты."
         ]
 
+    weakest_delta = weakest["score_delta"] if weakest else 0
+    consequences = [
+        (
+            f"К концу модельного горизонта район {weakest['name']} меняется с "
+            f"{weakest['score_before']:.2f} до {weakest['score_after']:.2f} балла "
+            f"({weakest_delta:+.2f}), но остаётся слабейшим по качеству жизни."
+        )
+        if weakest
+        else "Оценка самых слабых районов остаётся важной при выборе следующих мер.",
+        (
+            "После мероприятий ни один показатель не остаётся ниже порога 40."
+            if report["critical_count"] == 0
+            else f"После мероприятий остаётся {report['critical_count']} "
+            "показателей ниже порога 40; они сохранят штраф в итоговой оценке."
+        ),
+    ]
+
     return {
         "summary": (
             f"Сценарий набрал {report['score']:.2f} из 100 — "
@@ -82,6 +100,7 @@ def _fallback_explanation(
         ),
         "strengths": strengths[:3],
         "risks": risks[:3],
+        "consequences": consequences,
         "recommendations": recommendations,
     }
 
@@ -125,6 +144,21 @@ def _facts_for_model(
             for district in report["districts"]
         ],
         "synergies": report["applied_synergies"],
+        "measure_effects": [
+            {
+                "source": effect["source_name"],
+                "district": DISTRICTS[effect["district_id"]]["name"],
+                "indicator": INDICATORS[effect["indicator_id"]]["label"],
+                "realised_effect_before_clipping": effect["realised_effect"],
+                "is_synergy": effect.get("is_synergy", False),
+            }
+            for effect in report["applied_effects"]
+        ],
+        "attribution_note": (
+            "Measure-level effects are on indicators before clipping. They cannot be added up "
+            "as separate Score contributions because the Score has a minimum-district term, "
+            "a critical threshold and synergies."
+        ),
         "precalculated_alternatives": [
             {
                 "description": item["description"],
@@ -145,7 +179,7 @@ def _facts_for_model(
 
 def _normalise_model_response(content: str) -> dict[str, Any]:
     parsed = json.loads(content)
-    fields = ("summary", "strengths", "risks", "recommendations")
+    fields = ("summary", "strengths", "risks", "consequences", "recommendations")
     if not isinstance(parsed, dict) or any(field not in parsed for field in fields):
         raise ValueError("AI response does not match the expected schema")
     if not isinstance(parsed["summary"], str) or any(
@@ -154,10 +188,15 @@ def _normalise_model_response(content: str) -> dict[str, Any]:
         for field in fields[1:]
     ):
         raise ValueError("AI response contains fields with an invalid type")
+    # All displayed numbers come from the deterministic report, never from free-form AI prose.
+    prose = [parsed["summary"], *(text for field in fields[1:] for text in parsed[field])]
+    if any(re.search(r"\d", text) for text in prose):
+        raise ValueError("AI response contains numeric claims outside the validated report")
     return {
         "summary": parsed["summary"],
         "strengths": parsed["strengths"][:3],
         "risks": parsed["risks"][:3],
+        "consequences": parsed["consequences"][:3],
         "recommendations": parsed["recommendations"][:3],
     }
 
@@ -183,11 +222,16 @@ def explain(
         "Объясняй выборы понятным русским языком и придерживайся переданных фактов. "
         "Не пересчитывай Score, не выводи новые числовые оценки и не делай фактических "
         "утверждений о реальной Астане. Если факта нет во входных данных, не выдумывай его. "
+        "Ответ нужен только качественный: не используй ни одной цифры ни в одном поле. "
+        "Вклад отдельной меры в показатель указан до ограничения шкалы, а вклад в Score "
+        "не является аддитивным из-за слабейшего района, порога критичности и синергий. "
+        "Все подтверждённые числа интерфейс показывает отдельно из расчётного ядра. "
         "Не предлагай конкретные замены от себя. Если используешь precalculated_alternatives, "
-        "цитируй только переданные Score и дельты и ясно говори, что это прогнозируемые "
-        "альтернативы, которые ещё не применены. Не придумывай новые Score. "
+        "объясни словами их компромиссы, не называя цифры, коды и новые Score. "
+        "Это альтернативы, которые ещё не применены. "
         "Верни только JSON с полями summary (строка), strengths (массив строк), risks "
-        "(массив строк), recommendations (массив строк). Если готовых альтернатив нет, "
+        "(массив строк), consequences (массив строк), recommendations (массив строк). "
+        "В consequences опиши возможные последствия на модельном горизонте. Если готовых альтернатив нет, "
         "сообщи об этом без выдуманных вариантов."
     )
     request_body = {

@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from backend.app.engine import baseline_report, simulate, validate_choices
+from backend.app.engine import (
+    DISTRICTS,
+    _score_values,
+    baseline_report,
+    simulate,
+    validate_choices,
+)
 
 REFERENCE_SCENARIO = [
     {"measure_id": "M7", "district_id": "nura"},
@@ -20,6 +26,20 @@ def test_baseline_matches_dataset_reference() -> None:
     assert report["districts"][0]["score_before"] == pytest.approx(62.99)
     assert report["districts"][-1]["score_after"] == pytest.approx(49.18)
     assert report["critical_count"] == 2
+
+
+def test_critical_threshold_is_strictly_below_40() -> None:
+    values = {
+        district_id: dict(district["indicators"])
+        for district_id, district in DISTRICTS.items()
+    }
+    values["nura"]["S1"] = 40
+    values["nura"]["S2"] = 39.999
+
+    scored = _score_values(values)
+
+    assert scored["critical_count"] == 1
+    assert scored["critical_indicators"][0]["indicator_id"] == "S2"
 
 
 def test_documented_scenario_matches_reference_score_and_budget() -> None:

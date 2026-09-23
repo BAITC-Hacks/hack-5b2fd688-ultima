@@ -377,7 +377,18 @@ def public_config() -> dict[str, Any]:
         "max_per_direction": DATA["max_per_direction"],
         "indicators": DATA["indicators"],
         "districts": DATA["districts"],
-        "measures": DATA["measures"],
+        "measures": [
+            {
+                **measure,
+                "realised_effects": {
+                    indicator_id: full_effect
+                    * (DATA["horizon_quarters"] - measure["lag"])
+                    / DATA["horizon_quarters"]
+                    for indicator_id, full_effect in measure["effects"].items()
+                },
+            }
+            for measure in DATA["measures"]
+        ],
         "synergies": DATA["synergies"],
         "incompatibilities": DATA["incompatibilities"],
         "baseline": baseline_report(),

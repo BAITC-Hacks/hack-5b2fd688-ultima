@@ -11,6 +11,7 @@
     <title>Аким на 5 часов — симулятор городских решений</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%231b342e'/%3E%3Cpath d='M9 27 17 12h6l8 15h-7l-4-9-4 9z' fill='%23d9f17d'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/styles.css" />
+    <script src="/presentation.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
   <body>
@@ -97,16 +98,16 @@
             </div>
             <div class="filter-list" id="filter-list" role="group" aria-label="Фильтр по направлению"></div>
             <div class="measure-list" id="measure-list"></div>
-            <div class="catalog-note"><span aria-hidden="true">ⓘ</span> Эффекты — модельный прогноз на горизонте 8 кварталов. Все данные синтетические.</div>
+            <div class="catalog-note"><span aria-hidden="true">ⓘ</span> Эффекты указаны с учётом лага за 8 кварталов. Синергии учитываются отдельно. Все данные синтетические.</div>
           </section>
 
           <section class="results-panel" id="results-panel" aria-labelledby="results-title" hidden>
             <div class="results-header">
               <div>
                 <span class="panel-kicker">ИТОГ СЦЕНАРИЯ</span>
-                <h3 id="results-title">Что изменится в городе</h3>
+                <h3 id="results-title" tabindex="-1">Что изменится в городе</h3>
               </div>
-              <button class="outline-button" id="edit-plan-button" type="button">Изменить план <span aria-hidden="true">↗</span></button>
+              <div class="result-actions"><button class="outline-button" id="export-presentation-button" type="button">Презентация / PDF <span aria-hidden="true">↓</span></button><button class="outline-button" id="edit-plan-button" type="button">Изменить план <span aria-hidden="true">↗</span></button></div>
             </div>
             <div class="result-summary">
               <div class="result-score-card">
@@ -120,6 +121,8 @@
                 <div class="summary-mini-stat"><span>КРИТИЧЕСКИХ ПОКАЗАТЕЛЕЙ</span><strong id="result-critical">—</strong><small>значение ниже 40</small></div>
               </div>
             </div>
+            <p class="screen-reader-only" id="result-announcement" role="status" aria-live="polite"></p>
+            <div class="critical-list" id="critical-list" hidden></div>
 
             <div class="explanation-card" id="explanation-card">
               <div class="explanation-icon" aria-hidden="true">✳</div>
@@ -130,6 +133,7 @@
                   <div><span class="explanation-label positive-label">СИЛЬНЫЕ СТОРОНЫ</span><ul id="explanation-strengths"></ul></div>
                   <div><span class="explanation-label risk-label">РИСКИ И КОМПРОМИССЫ</span><ul id="explanation-risks"></ul></div>
                 </div>
+                <div class="explanation-consequences" id="explanation-consequences-wrap" hidden><span class="explanation-label">ВОЗМОЖНЫЕ ПОСЛЕДСТВИЯ</span><ul id="explanation-consequences"></ul></div>
                 <div id="explanation-recommendations-wrap" class="recommendation-row" hidden><span>ИДЕЯ ДЛЯ СЛЕДУЮЩЕГО СЦЕНАРИЯ</span><p id="explanation-recommendations"></p></div>
                 <p id="explanation-note" class="explanation-note" hidden></p>
               </div>
@@ -153,6 +157,22 @@
             </div>
 
             <div class="synergy-note" id="synergy-note" hidden><span aria-hidden="true">✳</span><div><strong>Сработала синергия</strong><p id="synergy-copy"></p></div></div>
+
+            <section class="result-section team-submit-section" aria-labelledby="team-submit-title">
+              <div class="result-section-heading"><div><span class="panel-kicker">ОБЩИЙ СТАРТ ДЛЯ ВСЕХ</span><h4 id="team-submit-title">Сохранить результат команды</h4></div></div>
+              <p class="result-help">В таблицу попадает только проверенный сервером сценарий. У каждой команды один обновляемый результат.</p>
+              <form id="team-submit-form" class="team-submit-form">
+                <label class="team-input-label" for="team-name">Название команды
+                  <input id="team-name" name="team_name" type="text" minlength="1" maxlength="40" required autocomplete="organization" placeholder="Например, Ultima" />
+                </label>
+                <button class="team-save-button" id="save-team-button" type="submit">Добавить в сравнение <span aria-hidden="true">↗</span></button>
+              </form>
+              <details class="team-code-details"><summary>Как обновить результат с другого устройства?</summary>
+                <label for="team-code">Код команды: сохраните его после первой отправки и введите здесь на другом устройстве.</label>
+                <input id="team-code" type="text" autocomplete="off" spellcheck="false" placeholder="Ваш личный код команды" />
+              </details>
+              <p class="team-save-status" id="team-save-status" aria-live="polite"></p>
+            </section>
           </section>
         </div>
 
@@ -187,6 +207,13 @@
           <div class="aside-footnote"><span class="footnote-spark">✳</span><p>Модель показывает <strong>условный сценарий</strong>, а не официальный прогноз города.</p></div>
         </aside>
       </div>
+
+      <section class="comparison-board panel" id="comparison-board" aria-labelledby="comparison-title" hidden>
+        <div class="comparison-heading"><div><span class="panel-kicker">СРАВНЕНИЕ СЦЕНАРИЕВ</span><h2 id="comparison-title">Как распределили бюджет команды</h2><p>Одинаковые исходные данные, бюджет 100 и версия модели для каждого результата.</p></div><button id="refresh-leaderboard" class="outline-button" type="button">Обновить таблицу ↻</button></div>
+        <div class="comparison-status" id="comparison-status" role="status" aria-live="polite"></div>
+        <div class="comparison-table-wrap"><table class="comparison-table"><thead><tr><th>#</th><th>КОМАНДА</th><th>SCORE</th><th>ИЗМЕНЕНИЕ</th><th>РАСХОДЫ</th><th>КРИТИЧЕСКИХ</th><th></th></tr></thead><tbody id="leaderboard-rows"></tbody></table></div>
+        <div id="team-comparison" class="team-comparison" hidden></div>
+      </section>
 
       <footer class="page-footer"><span>ГОРОДСКАЯ ЛАБОРАТОРИЯ <i>·</i> HACKALEM AI</span><span>Прозрачная модель · Проверяемые решения</span></footer>
     </main>

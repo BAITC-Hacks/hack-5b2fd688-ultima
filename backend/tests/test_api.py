@@ -30,6 +30,11 @@ def test_health_and_config_are_available() -> None:
     assert len(config["districts"]) == 5
     assert len(config["measures"]) == 14
     assert config["baseline"]["score"] == 52.55768
+    measure_school = next(measure for measure in config["measures"] if measure["id"] == "M7")
+    assert measure_school["effects"]["S1"] == 16
+    assert measure_school["realised_effects"]["S1"] == 10
+    measure_crossing = next(measure for measure in config["measures"] if measure["id"] == "M11")
+    assert measure_crossing["realised_effects"]["T1"] == -1.75
 
 
 def test_partial_validation_endpoint() -> None:

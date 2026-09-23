@@ -5,11 +5,19 @@ const state = {
   filter: 'all',
   report: null,
   loading: false,
+  adding: false,
+  selectionsVersion: 0,
   draftDistricts: {},
   validationRequest: 0,
+  leaderboard: [],
+  comparisonTeam: null,
+  teamTokens: {},
+  leaderboardLoading: false,
 };
 
 const STORAGE_KEY = 'akim-simulator-selections-v1';
+const TEAM_TOKENS_KEY = 'akim-simulator-team-tokens-v1';
+const TEAM_NAME_KEY = 'akim-simulator-team-name-v1';
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -70,7 +78,8 @@ async function api(path, body) {
   });
   const data = await response.json();
   if (!response.ok) {
-    const error = new Error((data.errors || []).join(' ') || data.detail || 'Запрос не выполнен.');
+    const message = (data.errors || []).join(' ') || (typeof data.detail === 'string' ? data.detail : '') || 'Запрос не выполнен.';
+    const error = new Error(message);
     error.data = data;
     error.status = response.status;
     throw error;
@@ -82,12 +91,46 @@ function loadSavedSelections() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     if (!Array.isArray(saved)) return;
+    const knownMeasures = new Map(state.config.measures.map((measure) => [measure.id, measure]));
+    const knownDistricts = new Set(state.config.districts.map((district) => district.id));
+    const seen = new Set();
     state.selections = saved
-      .filter((item) => item && typeof item.measure_id === 'string')
+      .filter((item) => {
+        const measure = knownMeasures.get(item?.measure_id);
+        if (!measure || seen.has(item.measure_id)) return false;
+        if (measure.type === 'district' && !knownDistricts.has(item.district_id)) return false;
+        if (measure.type === 'city' && item.district_id != null) return false;
+        seen.add(item.measure_id);
+        return true;
+      })
       .slice(0, state.config.required_selections)
       .map((item) => ({ measure_id: item.measure_id, district_id: item.district_id ?? null }));
   } catch {
     state.selections = [];
+  }
+}
+
+function loadTeamTokens() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TEAM_TOKENS_KEY) || '{}');
+    if (saved && typeof saved === 'object' && !Array.isArray(saved)) state.teamTokens = saved;
+    $('#team-name').value = localStorage.getItem(TEAM_NAME_KEY) || '';
+  } catch {
+    state.teamTokens = {};
+  }
+}
+
+function teamKey(name) {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function storeTeamToken(name, token) {
+  if (!token) return;
+  state.teamTokens[teamKey(name)] = token;
+  try {
+    localStorage.setItem(TEAM_TOKENS_KEY, JSON.stringify(state.teamTokens));
+  } catch {
+    // Access codes can still be copied manually if browser storage is disabled.
   }
 }
 
@@ -146,9 +189,10 @@ function renderCatalog() {
   $('#measure-list').innerHTML = measures.map((measure) => {
     const selected = selectedIds.has(measure.id);
     const full = state.selections.length >= state.config.required_selections;
-    const effects = Object.entries(measure.effects).map(([id, amount]) => {
+    const effects = Object.entries(measure.realised_effects || measure.effects).map(([id, amount]) => {
       const indicator = state.config.indicators.find((item) => item.id === id);
-      return `<span class="impact-chip ${amount < 0 ? 'negative' : ''}" title="${escapeHtml(indicator?.label || id)}">${escapeHtml(id)} ${amount > 0 ? '+' : ''}${amount}</span>`;
+      const displayedAmount = Number(amount.toFixed(2));
+      return `<span class="impact-chip ${amount < 0 ? 'negative' : ''}" title="${escapeHtml(indicator?.label || id)}: эффект за 8 кварталов с учётом лага">${escapeHtml(id)} ${displayedAmount > 0 ? '+' : ''}${displayedAmount}</span>`;
     }).join('');
     const location = measure.type === 'district'
       ? `<select class="district-select" data-district-select="${escapeHtml(measure.id)}" aria-label="Район для мероприятия ${escapeHtml(measure.name)}">
@@ -239,6 +283,12 @@ function renderResults() {
   $('#result-spent').textContent = report.total_cost;
   $('#result-remaining').textContent = report.budget_remaining;
   $('#result-critical').textContent = report.critical_count;
+  $('#result-announcement').textContent = `Результат сценария: Score ${formatScore(report.score)}, изменение ${signed(displayedDelta)}. Критических показателей: ${report.critical_count}.`;
+  const criticalList = $('#critical-list');
+  criticalList.hidden = report.critical_count === 0;
+  criticalList.innerHTML = report.critical_count
+    ? `<div class="critical-heading"><span aria-hidden="true">!</span><div><strong>Показатели ниже 40 — штраф в итоговом Score</strong><p>Эти проблемы остались после выбранных решений.</p></div></div><ul>${report.critical_indicators.map((item) => `<li><strong>${escapeHtml(item.district_name)}</strong> · ${escapeHtml(item.indicator_label)} <span>${Number(item.value).toFixed(1)}</span></li>`).join('')}</ul>`
+    : '';
 
   $('#explanation-summary').textContent = explanation.summary;
   const sourceBadge = $('#explanation-source');
@@ -246,6 +296,9 @@ function renderResults() {
   sourceBadge.classList.toggle('ai-source', explanation.source === 'openai');
   $('#explanation-strengths').innerHTML = explanation.strengths.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
   $('#explanation-risks').innerHTML = explanation.risks.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+  const consequences = explanation.consequences || [];
+  $('#explanation-consequences-wrap').hidden = consequences.length === 0;
+  $('#explanation-consequences').innerHTML = consequences.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
   const recommendations = explanation.recommendations || [];
   $('#explanation-recommendations-wrap').hidden = recommendations.length === 0;
   $('#explanation-recommendations').textContent = recommendations.join(' ');
@@ -278,11 +331,11 @@ function renderResults() {
   }).join('');
 
   $('#district-details').innerHTML = report.districts.map((district, index) => {
-    const changed = district.indicators.filter((indicator) => Math.abs(indicator.delta) > 0.000001);
+    const changed = district.indicators.filter((indicator) => Math.abs(indicator.delta) > 0.000001 || indicator.after < 40);
     const rows = changed.length ? changed.map((indicator) => {
       const contributionTitle = indicator.contributions.map((item) => `${item.source_name}: ${signed(item.amount, 2)}`).join('\n');
       const deltaClass = indicator.delta < 0 ? 'indicator-down' : 'indicator-up';
-      return `<tr title="${escapeHtml(contributionTitle)}"><td><strong>${escapeHtml(indicator.label)}</strong> <span class="indicator-id">${escapeHtml(indicator.id)}</span></td><td>${Number(indicator.before).toFixed(1)}</td><td>${Number(indicator.after).toFixed(1)}</td><td class="${deltaClass}">${signed(indicator.delta, 1)}</td></tr>`;
+      return `<tr title="${escapeHtml(contributionTitle)}" class="${indicator.after < 40 ? 'critical-indicator-row' : ''}"><td><strong>${escapeHtml(indicator.label)}</strong> <span class="indicator-id">${escapeHtml(indicator.id)}</span>${indicator.after < 40 ? ' <span class="critical-chip">НИЖЕ 40</span>' : ''}</td><td>${Number(indicator.before).toFixed(1)}</td><td>${Number(indicator.after).toFixed(1)}</td><td class="${deltaClass}">${signed(indicator.delta, 1)}</td></tr>`;
     }).join('') : '<tr><td colspan="4">Выбранные меры не изменили показатели этого района.</td></tr>';
     return `<details class="district-detail" ${district.id === report.weakest_district_id || index === 0 ? 'open' : ''}>
       <summary><span class="district-detail-title">${escapeHtml(district.name)}</span><span class="district-detail-score">${formatScore(district.score_before)} → ${formatScore(district.score_after)}</span><span class="district-detail-delta">${signed(district.score_delta)}</span></summary>
@@ -297,12 +350,144 @@ function renderResults() {
   ).join(' ');
 }
 
+function renderLeaderboard() {
+  const tbody = $('#leaderboard-rows');
+  const entries = state.leaderboard;
+  const status = $('#comparison-status');
+  if (!status.dataset.error) {
+    status.textContent = state.leaderboardLoading
+      ? 'Загружаем результаты команд…'
+      : entries.length
+        ? `Сохранено ${entries.length} ${russianCount(entries.length, ['сценарий', 'сценария', 'сценариев'])} по текущей версии модели.`
+        : 'Пока нет сохранённых команд. Рассчитайте сценарий и добавьте первый результат.';
+  }
+  $('#refresh-leaderboard').disabled = state.leaderboardLoading;
+  tbody.innerHTML = entries.map((entry, index) => `<tr class="${state.comparisonTeam === teamKey(entry.team_name) ? 'comparison-selected' : ''}">
+    <td class="comparison-rank">${entry.rank}</td>
+    <td class="comparison-name">${escapeHtml(entry.team_name)}</td>
+    <td class="comparison-score">${formatScore(entry.score)}</td>
+    <td class="comparison-change">${signed(entry.display_score_delta)}</td>
+    <td>${entry.total_cost} / ${state.config.budget}</td>
+    <td>${entry.critical_count}</td>
+    <td><button type="button" data-compare-team="${index}" class="comparison-action">Сравнить ↗</button></td>
+  </tr>`).join('');
+
+  const detail = $('#team-comparison');
+  const chosen = entries.find((entry) => teamKey(entry.team_name) === state.comparisonTeam);
+  if (!chosen) {
+    detail.hidden = true;
+    detail.innerHTML = '';
+    return;
+  }
+
+  const own = state.report || state.config.baseline;
+  const ownScores = Object.fromEntries(own.districts.map((district) => [district.id, district.score_after]));
+  const difference = Number((Number(formatScore(chosen.score)) - Number(formatScore(own.score))).toFixed(2));
+  const districtRows = state.config.districts.map((district) => {
+    const teamDistrict = chosen.district_scores[district.id];
+    return `<tr><td>${escapeHtml(district.name)}</td><td>${formatScore(ownScores[district.id])}</td><td>${formatScore(teamDistrict)}</td><td>${signed(Number((Number(formatScore(teamDistrict)) - Number(formatScore(ownScores[district.id]))).toFixed(2)))}</td></tr>`;
+  }).join('');
+  const measures = chosen.selections.map((selection) => {
+    const measure = measureById(selection.measure_id);
+    const district = selection.district_id ? districtById(selection.district_id)?.name : 'весь город';
+    return measure ? `<li>${escapeHtml(measure.id)} · ${escapeHtml(measure.name)} — ${escapeHtml(district)}</li>` : '';
+  }).join('');
+  detail.hidden = false;
+  detail.innerHTML = `<div class="team-comparison-top">
+    <div><span class="panel-kicker">ПОДРОБНОСТИ ПЛАНА</span><h3>${escapeHtml(chosen.team_name)}</h3></div>
+    <button type="button" class="comparison-close" id="close-comparison" aria-label="Закрыть сравнение">×</button>
+  </div>
+  <div class="comparison-score-pair"><div><span>${state.report ? 'ВАШ ТЕКУЩИЙ ПЛАН' : 'СТАРТОВЫЙ ГОРОД'}</span><strong>${formatScore(own.score)}</strong></div><div><span>ПЛАН КОМАНДЫ</span><strong>${formatScore(chosen.score)}</strong></div><div class="comparison-difference"><span>РАЗНИЦА</span><strong>${signed(difference)}</strong></div></div>
+  <div class="comparison-columns"><div><h4>Районы: ваш план → команда</h4><table class="comparison-district-table"><thead><tr><th>РАЙОН</th><th>ВАШ</th><th>КОМАНДА</th><th>Δ</th></tr></thead><tbody>${districtRows}</tbody></table></div>
+  <div><h4>Пять решений команды</h4><ol class="comparison-decisions">${measures}</ol><button type="button" class="comparison-load-button" data-load-team="${entries.indexOf(chosen)}">Взять этот план в симулятор <span aria-hidden="true">↗</span></button></div></div>`;
+}
+
+async function refreshLeaderboard() {
+  if (state.leaderboardLoading) return;
+  state.leaderboardLoading = true;
+  delete $('#comparison-status').dataset.error;
+  renderLeaderboard();
+  try {
+    const board = await api('/api/leaderboard');
+    state.leaderboard = board.entries;
+  } catch (error) {
+    const status = $('#comparison-status');
+    status.dataset.error = 'true';
+    status.textContent = error.message || 'Не удалось загрузить результаты команд.';
+  } finally {
+    state.leaderboardLoading = false;
+    renderLeaderboard();
+  }
+}
+
+async function submitTeamScenario(event) {
+  event.preventDefault();
+  if (!state.report) return;
+  const input = $('#team-name');
+  const name = input.value.trim().replace(/\s+/g, ' ');
+  if (!name || name.length > 40) {
+    showToast('Название команды должно содержать от 1 до 40 символов.');
+    input.focus();
+    return;
+  }
+  const codeInput = $('#team-code');
+  const ownerToken = codeInput.value.trim() || state.teamTokens[teamKey(name)] || null;
+  const button = $('#save-team-button');
+  button.disabled = true;
+  const selectionSnapshot = JSON.stringify(state.selections);
+  $('#team-save-status').textContent = 'Проверяем план и сохраняем результат команды…';
+  try {
+    const result = await api('/api/leaderboard', {
+      team_name: name,
+      owner_token: ownerToken,
+      selections: JSON.parse(selectionSnapshot),
+    });
+    const token = result.entry.owner_token || ownerToken;
+    if (token) {
+      storeTeamToken(name, token);
+      codeInput.value = token;
+    }
+    try {
+      localStorage.setItem(TEAM_NAME_KEY, name);
+    } catch {
+      // The team name remains visible in the form for this session.
+    }
+    $('#team-save-status').textContent = `План «${name}» сохранён. ${result.entry.owner_token ? 'Код команды показан выше: сохраните его для обновления с другого устройства.' : 'Ваш результат обновлён.'}`;
+    await refreshLeaderboard();
+    state.comparisonTeam = teamKey(name);
+    renderLeaderboard();
+  } catch (error) {
+    $('#team-save-status').textContent = error.message || 'Не удалось сохранить результат.';
+    showToast(error.message || 'Не удалось сохранить результат команды.');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function useTeamPlan(index) {
+  const entry = state.leaderboard[index];
+  if (!entry) return;
+  state.selections = entry.selections.map((choice) => ({
+    measure_id: choice.measure_id,
+    district_id: choice.district_id ?? null,
+  }));
+  state.selectionsVersion++;
+  state.report = null;
+  state.validation = null;
+  saveSelections();
+  render();
+  await refreshValidation();
+  showToast(`План «${entry.team_name}» загружен. Рассчитайте его или измените решения.`);
+  $('#catalog-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function render() {
   renderSelections();
   renderFilters();
   renderCatalog();
   renderBudgetAndValidation();
   renderResults();
+  renderLeaderboard();
 }
 
 async function refreshValidation() {
@@ -328,7 +513,7 @@ async function refreshValidation() {
 
 async function addMeasure(measureId) {
   const measure = measureById(measureId);
-  if (!measure || state.selections.some((item) => item.measure_id === measureId)) return;
+  if (!measure || state.adding || state.selections.some((item) => item.measure_id === measureId)) return;
   if (state.selections.length >= state.config.required_selections) {
     showToast('В плане уже пять решений. Удалите одно, чтобы выбрать другое.');
     return;
@@ -340,17 +525,37 @@ async function addMeasure(measureId) {
     select?.focus();
     return;
   }
-  state.selections.push({ measure_id: measureId, district_id: districtId || null });
-  state.report = null;
-  saveSelections();
-  render();
-  await refreshValidation();
+  const proposed = [...state.selections, { measure_id: measureId, district_id: districtId || null }];
+  const version = state.selectionsVersion;
+  state.adding = true;
+  try {
+    const validation = await api('/api/validate', { selections: proposed });
+    if (version !== state.selectionsVersion) return;
+    if (!validation.valid) {
+      showToast(validation.errors[0] || 'Этот набор решений недопустим.');
+      return;
+    }
+    state.validationRequest++;
+    state.selectionsVersion++;
+    state.selections = proposed;
+    state.validation = validation;
+    state.report = null;
+    saveSelections();
+    render();
+  } catch (error) {
+    if (version === state.selectionsVersion) showToast(error.message || 'Не удалось проверить новую меру.');
+  } finally {
+    state.adding = false;
+  }
 }
 
 async function removeMeasure(measureId) {
   const removed = state.selections.find((item) => item.measure_id === measureId);
   if (removed?.district_id) state.draftDistricts[measureId] = removed.district_id;
+  state.validationRequest++;
+  state.selectionsVersion++;
   state.selections = state.selections.filter((item) => item.measure_id !== measureId);
+  state.validation = null;
   state.report = null;
   saveSelections();
   render();
@@ -359,13 +564,22 @@ async function removeMeasure(measureId) {
 
 async function calculateScenario() {
   if (!state.validation?.ready || state.loading) return;
+  const version = state.selectionsVersion;
+  const selections = state.selections.map((choice) => ({ ...choice }));
   state.loading = true;
   renderBudgetAndValidation();
   try {
-    state.report = await api('/api/analyze', { selections: state.selections });
+    const report = await api('/api/analyze', { selections });
+    if (version !== state.selectionsVersion) return;
+    state.report = report;
     renderResults();
-    window.setTimeout(() => $('#results-panel').scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+    renderLeaderboard();
+    window.setTimeout(() => {
+      $('#results-title').focus({ preventScroll: true });
+      $('#results-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 40);
   } catch (error) {
+    if (version !== state.selectionsVersion) return;
     showToast(error.message || 'Не удалось рассчитать сценарий.');
     if (error.data?.errors) {
       state.validation = error.data;
@@ -384,6 +598,8 @@ async function useAlternative(index) {
     measure_id: choice.measure_id,
     district_id: choice.district_id ?? null,
   }));
+  state.validationRequest++;
+  state.selectionsVersion++;
   state.report = null;
   state.validation = null;
   saveSelections();
@@ -394,6 +610,8 @@ async function useAlternative(index) {
 }
 
 function resetScenario() {
+  state.validationRequest++;
+  state.selectionsVersion++;
   state.selections = [];
   state.validation = null;
   state.report = null;
@@ -403,6 +621,26 @@ function resetScenario() {
   render();
   refreshValidation();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function downloadPresentation() {
+  if (!state.report || typeof window.buildPresentationHtml !== 'function') {
+    showToast('Сначала рассчитайте сценарий, чтобы подготовить презентацию.');
+    return;
+  }
+  const teamName = $('#team-name').value.trim();
+  const content = window.buildPresentationHtml(state.report, teamName);
+  const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `akim-${state.report.model_version}-presentation.html`;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+  showToast('Презентация сохранена. Откройте HTML-файл и нажмите «Печать / PDF».');
 }
 
 function bindEvents() {
@@ -430,6 +668,27 @@ function bindEvents() {
   });
 
   $('#calculate-button').addEventListener('click', calculateScenario);
+  $('#export-presentation-button').addEventListener('click', downloadPresentation);
+  $('#team-submit-form').addEventListener('submit', submitTeamScenario);
+  $('#refresh-leaderboard').addEventListener('click', refreshLeaderboard);
+  $('#leaderboard-rows').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-compare-team]');
+    if (!button) return;
+    const entry = state.leaderboard[Number(button.dataset.compareTeam)];
+    if (!entry) return;
+    state.comparisonTeam = teamKey(entry.team_name);
+    renderLeaderboard();
+    $('#team-comparison').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  $('#team-comparison').addEventListener('click', (event) => {
+    if (event.target.closest('#close-comparison')) {
+      state.comparisonTeam = null;
+      renderLeaderboard();
+      return;
+    }
+    const button = event.target.closest('[data-load-team]');
+    if (button) useTeamPlan(Number(button.dataset.loadTeam));
+  });
   $('#alternative-list').addEventListener('click', (event) => {
     const button = event.target.closest('[data-use-alternative]');
     if (button) useAlternative(Number(button.dataset.useAlternative));
@@ -445,10 +704,13 @@ async function init() {
   try {
     state.config = await api('/api/config');
     loadSavedSelections();
+    loadTeamTokens();
     renderHero();
     $('#workspace').hidden = false;
+    $('#comparison-board').hidden = false;
     render();
     await refreshValidation();
+    await refreshLeaderboard();
   } catch (error) {
     $('#app-error').hidden = false;
     $('#app-error-message').textContent = error.message || 'Проверьте, что сервер запущен, и обновите страницу.';
