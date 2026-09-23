@@ -264,6 +264,10 @@ function renderBudgetAndValidation() {
     : validation.ready
       ? 'Все решения проходят проверку правил'
       : 'Добавьте пять мероприятий, чтобы увидеть результат';
+  $('#mobile-dock-summary').textContent = `${state.selections.length} из ${state.config.required_selections} · ${totalCost} / ${state.config.budget} ед.`;
+  const mobileCalculate = $('#mobile-calculate-button');
+  mobileCalculate.disabled = state.loading || (!validation.ready && !state.report);
+  mobileCalculate.innerHTML = `${state.loading ? 'Считаем…' : state.report ? 'К результату' : 'Рассчитать'} <span aria-hidden="true">↗</span>`;
 }
 
 function renderResults() {
@@ -668,6 +672,14 @@ function bindEvents() {
   });
 
   $('#calculate-button').addEventListener('click', calculateScenario);
+  $('#mobile-calculate-button').addEventListener('click', () => {
+    if (state.report) {
+      $('#results-title').focus({ preventScroll: true });
+      $('#results-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      calculateScenario();
+    }
+  });
   $('#export-presentation-button').addEventListener('click', downloadPresentation);
   $('#team-submit-form').addEventListener('submit', submitTeamScenario);
   $('#refresh-leaderboard').addEventListener('click', refreshLeaderboard);
@@ -705,9 +717,14 @@ async function init() {
     state.config = await api('/api/config');
     loadSavedSelections();
     loadTeamTokens();
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      $('#budget-directions').open = false;
+      $('#rules-details').open = false;
+    }
     renderHero();
     $('#workspace').hidden = false;
     $('#comparison-board').hidden = false;
+    $('#mobile-dock').hidden = false;
     render();
     await refreshValidation();
     await refreshLeaderboard();

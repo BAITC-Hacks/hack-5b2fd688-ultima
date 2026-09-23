@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f4f5ef" />
+    <meta name="theme-color" content="#f3f3ec" />
     <meta
       name="description"
       content="Симулятор городских решений: распределите бюджет и посмотрите, как изменится качество жизни в районах."
@@ -25,6 +25,10 @@
             <span>Аким на 5 часов</span>
           </span>
         </a>
+        <nav class="header-nav" aria-label="Разделы симулятора">
+          <a href="#decisions-title">Собрать план</a>
+          <a href="#comparison-title">Результаты команд</a>
+        </nav>
         <div class="header-right">
           <span class="model-tag"><span class="live-dot"></span> СИМУЛЯЦИЯ · 2 ГОДА</span>
           <button class="text-button" id="reset-button" type="button" title="Сбросить выбранные решения">
@@ -40,11 +44,18 @@
         <div class="hero-orbit hero-orbit-one"></div>
         <div class="hero-orbit hero-orbit-two"></div>
         <div class="hero-copy">
-          <div class="eyebrow hero-eyebrow"><span class="eyebrow-line"></span> ГОРОД · БЮДЖЕТ · БУДУЩЕЕ</div>
+          <div class="eyebrow hero-eyebrow"><span class="eyebrow-line"></span> ИНТЕРАКТИВНАЯ ГОРОДСКАЯ СТРАТЕГИЯ</div>
           <h1 id="hero-title">Пять решений.<br /><span>Один город.</span></h1>
-          <p>Распределите бюджет между городскими инициативами и узнайте, как изменится качество жизни в районах.</p>
-          <div class="hero-footnote"><span class="footnote-icon">↗</span> Одна модель и одинаковые стартовые условия для всех</div>
+          <p>Выберите пять инициатив с фиксированной стоимостью и посмотрите, как ваши решения изменят качество жизни в районах.</p>
+          <div class="hero-metrics" aria-label="Правила симуляции"><span><strong>05</strong> решений</span><span><strong>100</strong> единиц бюджета</span><span><strong>08</strong> кварталов</span></div>
         </div>
+        <svg class="hero-skyline" viewBox="0 0 560 280" aria-hidden="true" focusable="false">
+          <defs><linearGradient id="tower-fill" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#a5d693" stop-opacity=".23"/><stop offset="1" stop-color="#a5d693" stop-opacity=".025"/></linearGradient></defs>
+          <path d="M0 264h560M14 264V168l26-23 26 23v96M83 264V122h35v142M136 264V185h41v79M192 264V105h21v159M204 105V83M190 82h28M230 264V152h44v112M292 264V188h32v76M339 264V137h48v127M403 264V97h28v167M417 97V70M448 264V167h36v97M498 264V129h38v135" fill="none" stroke="#b8d9b3" stroke-width="2" stroke-opacity=".42"/>
+          <path d="M83 264V122h35v142M230 264V152h44v112M339 264V137h48v127M403 264V97h28v167M498 264V129h38v135" fill="url(#tower-fill)"/>
+          <path d="M24 194h13m-13 22h13m65-68h-8m0 26h8m44 31h15m0 22h-15m100-53h14m-14 25h14m93-40h14m-14 26h14m58-61h10m-10 23h10m84-21h10m-10 24h10" stroke="#d9f17d" stroke-width="2" stroke-linecap="round" stroke-opacity=".45"/>
+          <circle cx="205" cy="62" r="10" fill="none" stroke="#d9f17d" stroke-opacity=".62" stroke-width="2"/><circle cx="205" cy="62" r="3" fill="#d9f17d" fill-opacity=".52"/>
+        </svg>
         <div class="hero-score-block">
           <div class="score-orb" id="hero-score-orb" aria-label="Базовый Astana Quality of Life Score">
             <div class="score-orb-inner">
@@ -55,16 +66,17 @@
           </div>
           <div class="hero-score-caption">
             <span class="hero-caption-dot"></span>
-            <span>СТАРТОВАЯ ТОЧКА<br /><strong>АСТАНА · 5 РАЙОНОВ</strong></span>
+            <span>СТАРТОВАЯ ТОЧКА<br /><strong>5 РАЙОНОВ · ЕДИНЫЕ ДАННЫЕ</strong></span>
           </div>
         </div>
-        <div class="hero-index">01 <span>/</span> 03</div>
       </section>
 
       <div class="section-heading">
         <div>
           <div class="eyebrow"><span class="eyebrow-line"></span> ИНТЕРАКТИВНЫЙ СЦЕНАРИЙ</div>
           <h2>Соберите план действий</h2>
+          <p class="section-subtitle">Добавляйте мероприятия, выбирайте районы и следите за общим бюджетом.</p>
+          <a class="section-jump" href="#catalog-title">Перейти к выбору инициатив <span aria-hidden="true">↘</span></a>
         </div>
         <div class="step-counter"><span class="step-counter-dot"></span> <span id="step-label">0 из 5 решений</span></div>
       </div>
@@ -183,19 +195,22 @@
             <p class="budget-caption">условных единиц распределено</p>
             <div class="budget-track" aria-label="Использованная часть бюджета"><span id="budget-progress"></span></div>
             <div class="budget-remaining-row"><span>Остаток бюджета</span><strong id="budget-remaining">100</strong></div>
-            <div class="aside-divider"></div>
-            <div class="directions-title"><span>НАПРАВЛЕНИЯ В ПЛАНЕ</span><small>максимум 2</small></div>
-            <div id="direction-summary" class="direction-summary"></div>
+            <details class="budget-directions" id="budget-directions" open>
+              <summary class="directions-title"><span>Направления в плане</span><small>максимум 2 <span aria-hidden="true">⌄</span></small></summary>
+              <div id="direction-summary" class="direction-summary"></div>
+            </details>
           </section>
 
           <section class="rules-card panel">
             <div class="rules-heading"><span class="rules-check">✓</span><h4>Правила сценария</h4></div>
-            <ul class="rules-list">
-              <li><span>01</span><p>Ровно <strong>5 разных</strong> мероприятий</p></li>
-              <li><span>02</span><p>Не больше <strong>2 на направление</strong></p></li>
-              <li><span>03</span><p>Районные меры требуют выбора района</p></li>
-              <li><span>04</span><p>Несовместимые меры нельзя объединить</p></li>
-            </ul>
+            <details class="rules-details" id="rules-details" open><summary>Как работает выбор <span aria-hidden="true">⌄</span></summary>
+              <ul class="rules-list">
+                <li><span>01</span><p>Ровно <strong>5 разных</strong> мероприятий</p></li>
+                <li><span>02</span><p>Не больше <strong>2 на направление</strong></p></li>
+                <li><span>03</span><p>Районные меры требуют выбора района</p></li>
+                <li><span>04</span><p>Несовместимые меры нельзя объединить</p></li>
+              </ul>
+            </details>
             <div id="validation-message" class="validation-message" aria-live="polite"></div>
             <button class="primary-button" id="calculate-button" type="button" disabled>
               <span class="button-label">Рассчитать сценарий</span>
@@ -217,6 +232,11 @@
 
       <footer class="page-footer"><span>ГОРОДСКАЯ ЛАБОРАТОРИЯ <i>·</i> HACKALEM AI</span><span>Прозрачная модель · Проверяемые решения</span></footer>
     </main>
+
+    <div class="mobile-dock" id="mobile-dock" hidden>
+      <div class="mobile-dock-status"><span>ВАШ СЦЕНАРИЙ</span><strong id="mobile-dock-summary">0 из 5 · 0 / 100 ед.</strong></div>
+      <button class="mobile-dock-button" id="mobile-calculate-button" type="button" disabled>Рассчитать <span aria-hidden="true">↗</span></button>
+    </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </body>

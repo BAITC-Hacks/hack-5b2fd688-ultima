@@ -202,8 +202,11 @@ def main() -> int:
             choose_measure(mobile, "M10", "nura")
             choose_measure(mobile, "M12")
             choose_measure(mobile, "M5", "saryarka")
-            mobile.locator("#calculate-button").click()
+            expect(mobile.locator("#mobile-dock-summary")).to_have_text("5 из 5 · 95 / 100 ед.")
+            expect(mobile.locator("#mobile-calculate-button")).to_be_enabled()
+            mobile.locator("#mobile-calculate-button").click()
             expect(mobile.locator("#result-score")).to_have_text("56.54", timeout=15_000)
+            expect(mobile.locator("#mobile-calculate-button")).to_contain_text("К результату")
             has_horizontal_overflow = mobile.evaluate(
                 "document.documentElement.scrollWidth > window.innerWidth"
             )
