@@ -109,6 +109,8 @@ AI получает каталог утверждений, построенны�
 
 ## Проверки
 
+GitHub Actions запускает `python -m pytest -q` и `python -m ruff check backend scripts` при каждом push и pull request. Workflow [`CI`](.github/workflows/ci.yml) использует Python 3.13, устанавливает зависимости из `requirements-dev.txt` и выполняет проверки без ключа OpenAI. Его также можно запустить вручную во вкладке Actions.
+
 Для линтера и браузерного теста сначала установите инструменты разработчика из `requirements-dev.txt` (Chromium нужен только для E2E):
 
 ```bash

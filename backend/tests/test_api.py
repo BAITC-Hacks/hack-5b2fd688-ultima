@@ -114,4 +114,21 @@ def test_web_app_is_served_from_the_same_origin() -> None:
     response = api_request("GET", "/")
 
     assert response.status_code == 200
-    assert "Соберите план действий" in response.text
+    assert response.headers["content-type"].startswith("text/html")
+    # These IDs are the frontend's DOM contract; headings may change with the design.
+    for element_id in ("main-content", "measure-list", "calculate-button", "results-panel"):
+        assert f'id="{element_id}"' in response.text
+
+    for path, attribute, content_types in (
+        ("/app.js", "src", {"text/javascript", "application/javascript"}),
+        ("/city-map.js", "src", {"text/javascript", "application/javascript"}),
+        ("/presentation.js", "src", {"text/javascript", "application/javascript"}),
+        ("/styles.css", "href", {"text/css"}),
+        ("/city-map.css", "href", {"text/css"}),
+        ("/map-workspace.css", "href", {"text/css"}),
+    ):
+        assert f'{attribute}="{path}"' in response.text
+        asset = api_request("GET", path)
+        assert asset.status_code == 200, path
+        assert asset.headers["content-type"].split(";", 1)[0] in content_types, path
+        assert asset.content, path
