@@ -1,0 +1,52 @@
+{
+  "model_version": "2026-09-23-v1",
+  "budget": 100,
+  "horizon_quarters": 8,
+  "required_selections": 5,
+  "max_per_direction": 2,
+  "indicators": [
+    {"id": "T1", "label": "Разгрузка дорог", "direction": "transport", "direction_label": "Транспорт", "description": "Насколько свободны дороги в час пик", "weight": 0.10},
+    {"id": "T2", "label": "Общественный транспорт", "direction": "transport", "direction_label": "Транспорт", "description": "Доступность остановок и частота движения", "weight": 0.10},
+    {"id": "E1", "label": "Озеленение", "direction": "ecology", "direction_label": "Экология и озеленение", "description": "Доступность зелёных зон для жителей", "weight": 0.09},
+    {"id": "E2", "label": "Качество воздуха", "direction": "ecology", "direction_label": "Экология и озеленение", "description": "Чем выше показатель, тем чище воздух", "weight": 0.11},
+    {"id": "S1", "label": "Школы и детсады", "direction": "social", "direction_label": "Социальная сфера", "description": "Обеспеченность местами в школах и детсадах", "weight": 0.11},
+    {"id": "S2", "label": "Поликлиники", "direction": "social", "direction_label": "Социальная сфера", "description": "Доступность первичной медицинской помощи", "weight": 0.11},
+    {"id": "B1", "label": "Безопасность улиц", "direction": "safety", "direction_label": "Безопасность", "description": "Освещение, камеры и безопасность улиц", "weight": 0.09},
+    {"id": "B2", "label": "Безопасность движения", "direction": "safety", "direction_label": "Безопасность", "description": "Безопасность дорожного движения", "weight": 0.09},
+    {"id": "C1", "label": "Надёжность ЖКХ", "direction": "services", "direction_label": "Городские сервисы", "description": "Надёжность теплоснабжения и водоснабжения", "weight": 0.10},
+    {"id": "C2", "label": "Ответы на обращения", "direction": "services", "direction_label": "Городские сервисы", "description": "Скорость решения обращений жителей", "weight": 0.10}
+  ],
+  "districts": [
+    {"id": "esil", "name": "Есиль", "population_share": 0.27, "profile": "Высокие показатели, но есть пробки на мостах и переполненные школы.", "indicators": {"T1": 45, "T2": 62, "E1": 68, "E2": 72, "S1": 48, "S2": 55, "B1": 78, "B2": 60, "C1": 75, "C2": 70}},
+    {"id": "almaty", "name": "Алматы", "population_share": 0.24, "profile": "Старые коммунальные сети и транспортная загруженность.", "indicators": {"T1": 40, "T2": 75, "E1": 50, "E2": 55, "S1": 60, "S2": 65, "B1": 62, "B2": 52, "C1": 50, "C2": 60}},
+    {"id": "saryarka", "name": "Сарыарка", "population_share": 0.20, "profile": "Загрязнение воздуха и недостаток зелёных зон.", "indicators": {"T1": 50, "T2": 70, "E1": 42, "E2": 40, "S1": 62, "S2": 68, "B1": 58, "B2": 55, "C1": 45, "C2": 55}},
+    {"id": "baikonur", "name": "Байконур", "population_share": 0.13, "profile": "Район со средними показателями без выраженного перекоса.", "indicators": {"T1": 52, "T2": 68, "E1": 55, "E2": 50, "S1": 58, "S2": 60, "B1": 52, "B2": 58, "C1": 55, "C2": 58}},
+    {"id": "nura", "name": "Нура", "population_share": 0.16, "profile": "Самые слабые показатели по социальной инфраструктуре и транспорту.", "indicators": {"T1": 55, "T2": 40, "E1": 45, "E2": 65, "S1": 38, "S2": 35, "B1": 55, "B2": 50, "C1": 60, "C2": 50}}
+  ],
+  "measures": [
+    {"id": "M1", "direction": "transport", "direction_label": "Транспорт", "name": "Выделенные полосы для автобусов", "type": "district", "cost": 18, "lag": 2, "effects": {"T1": 6, "T2": 9}, "description": "Ускоряют автобусы и помогают разгрузить дороги выбранного района."},
+    {"id": "M2", "direction": "transport", "direction_label": "Транспорт", "name": "Умные светофоры", "type": "city", "cost": 22, "lag": 2, "effects": {"T1": 4, "B2": 3}, "description": "Адаптивное управление потоками на дорогах всего города."},
+    {"id": "M3", "direction": "transport", "direction_label": "Транспорт", "name": "Линия ЛРТ / расширение", "type": "district", "cost": 30, "lag": 4, "effects": {"T1": 16, "T2": 20, "E2": 4}, "description": "Крупное вложение в транспортную доступность выбранного района."},
+    {"id": "M4", "direction": "ecology", "direction_label": "Экология и озеленение", "name": "Парк или сквер", "type": "district", "cost": 15, "lag": 2, "effects": {"E1": 12, "E2": 3, "B1": 2}, "description": "Новая зелёная зона улучшает микроклимат и качество городской среды."},
+    {"id": "M5", "direction": "ecology", "direction_label": "Экология и озеленение", "name": "Чистое топливо для частного сектора", "type": "district", "cost": 25, "lag": 3, "effects": {"E2": 14, "C1": 4}, "description": "Снижает загрязнение воздуха и нагрузку на коммунальные системы."},
+    {"id": "M6", "direction": "ecology", "direction_label": "Экология и озеленение", "name": "Озеленение и ветрозащитные полосы", "type": "city", "cost": 20, "lag": 4, "effects": {"E1": 5, "E2": 3}, "description": "Городская программа зелёных насаждений и защиты от пыли."},
+    {"id": "M7", "direction": "social", "direction_label": "Социальная сфера", "name": "Школа и детсад", "type": "district", "cost": 24, "lag": 3, "effects": {"S1": 16}, "description": "Модульное строительство расширяет доступность мест для детей."},
+    {"id": "M8", "direction": "social", "direction_label": "Социальная сфера", "name": "Центр семейного здоровья", "type": "district", "cost": 20, "lag": 3, "effects": {"S2": 14}, "description": "Новый центр первичной медицинской помощи."},
+    {"id": "M9", "direction": "social", "direction_label": "Социальная сфера", "name": "Дворовые спорт-хабы", "type": "district", "cost": 10, "lag": 1, "effects": {"S1": 3, "S2": 3, "B1": 3}, "description": "Доступные спортивные пространства рядом с домом."},
+    {"id": "M10", "direction": "safety", "direction_label": "Безопасность", "name": "Освещение и камеры", "type": "district", "cost": 12, "lag": 1, "effects": {"B1": 12, "B2": 2}, "description": "Расширение системы безопасных и освещённых улиц."},
+    {"id": "M11", "direction": "safety", "direction_label": "Безопасность", "name": "Безопасные переходы и школьные зоны", "type": "district", "cost": 10, "lag": 1, "effects": {"B2": 12, "T1": -2}, "description": "Снижает риск ДТП, немного увеличивая загруженность дорог."},
+    {"id": "M12", "direction": "services", "direction_label": "Городские сервисы", "name": "Платформа обращений жителей", "type": "city", "cost": 14, "lag": 1, "effects": {"C2": 5}, "description": "Единый цифровой канал заявок и контроля сроков ответа."},
+    {"id": "M13", "direction": "services", "direction_label": "Городские сервисы", "name": "Модернизация теплосетей и водосетей", "type": "district", "cost": 28, "lag": 4, "effects": {"C1": 18, "E2": 2}, "description": "Обновление коммунальной инфраструктуры выбранного района."},
+    {"id": "M14", "direction": "services", "direction_label": "Городские сервисы", "name": "Аварийные бригады и раннее оповещение", "type": "city", "cost": 16, "lag": 1, "effects": {"C1": 5, "C2": 2}, "description": "Быстрое реагирование коммунальных служб по всему городу."}
+  ],
+  "synergies": [
+    {"measures": ["M1", "M2"], "applied_at": "M1", "indicator": "T1", "amount": 2, "description": "Автобусные полосы работают эффективнее вместе с адаптивными светофорами."},
+    {"measures": ["M10", "M12"], "applied_at": "M10", "indicator": "B1", "amount": 2, "description": "Цифровые обращения помогают точнее находить проблемы уличного освещения."},
+    {"measures": ["M5", "M6"], "applied_at": "M5", "indicator": "E2", "amount": 2, "description": "Озеленение усиливает эффект перехода на чистое топливо."}
+  ],
+  "incompatibilities": [
+    {"measures": ["M1", "M3"], "scope": "anywhere", "description": "Выберите либо автобусные полосы, либо линию ЛРТ."},
+    {"measures": ["M4", "M7"], "scope": "same_district", "description": "Парк и школа конкурируют за участок в одном районе."},
+    {"measures": ["M5", "M13"], "scope": "same_district", "description": "В одном районе эти меры дублируют программу модернизации."}
+  ]
+}
