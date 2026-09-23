@@ -1227,12 +1227,51 @@ function downloadPresentation() {
 }
 
 function bindEvents() {
+  const header = $('#site-header');
+  const menuToggle = $('#menu-toggle');
+  const closeMenu = (restoreFocus = false) => {
+    header.classList.remove('menu-open');
+    menuToggle.setAttribute('aria-expanded', 'false');
+    menuToggle.setAttribute('aria-label', 'Открыть меню');
+    if (restoreFocus) menuToggle.focus({ preventScroll: true });
+  };
+  menuToggle.addEventListener('click', () => {
+    const open = menuToggle.getAttribute('aria-expanded') !== 'true';
+    header.classList.toggle('menu-open', open);
+    menuToggle.setAttribute('aria-expanded', String(open));
+    menuToggle.setAttribute('aria-label', open ? 'Закрыть меню' : 'Открыть меню');
+    if (open) $('.nav-link', header).focus({ preventScroll: true });
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && header.classList.contains('menu-open')) {
+      event.preventDefault();
+      closeMenu(true);
+    }
+  });
+  document.addEventListener('click', (event) => {
+    if (!header.contains(event.target)) closeMenu();
+  });
+  header.addEventListener('focusout', (event) => {
+    if (event.relatedTarget && !header.contains(event.relatedTarget)) closeMenu();
+  });
+  header.querySelectorAll('.brand, .header-cta').forEach((link) => link.addEventListener('click', () => closeMenu()));
+  window.matchMedia('(max-width: 1050px)').addEventListener('change', () => {
+    const focusHidden = document.activeElement.closest?.('.main-nav');
+    closeMenu(!!focusHidden && window.matchMedia('(max-width: 1050px)').matches);
+  });
   $$('.nav-link').forEach((link) => {
     link.setAttribute('aria-label', $('span', link).textContent);
     link.addEventListener('click', (event) => {
       if (link.getAttribute('aria-disabled') === 'true') {
         event.preventDefault();
         showToast('Выберите пять инициатив и рассчитайте план, чтобы открыть результат.');
+        return;
+      }
+      if (header.classList.contains('menu-open')) {
+        closeMenu();
+        const target = $(link.getAttribute('href'));
+        target?.setAttribute('tabindex', '-1');
+        target?.focus({ preventScroll: true });
       }
     });
   });

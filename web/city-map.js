@@ -14,34 +14,62 @@
     saryarka: {
       path: 'M66 65 386 52 413 264 363 297 231 286 160 273 60 292Z',
       label: [100, 82], center: [235, 175], zoom: 2.05,
-      slots: [[127, 151], [235, 151], [337, 151], [175, 234], [294, 238]],
-      route: 'M85 117Q190 105 325 115Q376 118 378 167L379 228Q378 263 341 271L213 267 113 255Q82 252 82 216Z',
+      slots: [[150, 169], [235, 169], [322, 169], [195, 238], [286, 245]],
+      route: 'M83 241 82 143Q82 120 111 120H356Q382 120 387 152L392 254',
     },
     baikonur: {
       path: 'M399 52 673 59 732 142 695 271 618 317 519 298 426 285Z',
-      label: [439, 86], center: [568, 183], zoom: 2.1,
-      slots: [[472, 166], [568, 166], [664, 173], [482, 249], [587, 262]],
-      route: 'M431 127Q541 109 637 133Q695 144 700 186L681 248Q669 278 612 295L468 275Q432 266 433 231Z',
+      label: [439, 81], center: [568, 183], zoom: 2.1,
+      slots: [[482, 176], [564, 172], [644, 197], [504, 251], [593, 274]],
+      siteScale: .62,
+      route: 'M438 254 422 165Q417 129 443 120Q552 107 652 131Q700 141 711 169L686 261',
     },
     almaty: {
       path: 'M747 133 922 156 953 337 932 465 792 446 730 354 708 277Z',
-      label: [774, 181], center: [827, 305], zoom: 1.85,
-      slots: [[783, 256], [886, 256], [787, 334], [891, 337], [853, 418]],
-      route: 'M752 219Q839 202 916 226L928 321Q932 397 910 439L807 429Q772 393 757 355L741 279Q731 241 752 219Z',
+      label: [774, 173], center: [827, 305], zoom: 1.85,
+      slots: [[791, 263], [868, 263], [791, 326], [868, 326], [885, 395]],
+      siteScale: .58,
+      route: 'M739 347Q733 315 731 282L732 240Q732 217 755 217H911Q933 217 933 245L937 355',
     },
     nura: {
       path: 'M57 322 147 300 244 337 352 362 423 342 445 544 333 581 111 557 49 460Z',
-      label: [101, 356], center: [243, 455], zoom: 2,
-      slots: [[125, 429], [232, 429], [338, 429], [158, 509], [280, 511]],
-      route: 'M82 403Q150 391 217 387L367 381Q403 382 410 418L420 515Q405 548 376 556L145 548Q92 535 84 476Z',
+      label: [101, 347], center: [243, 455], zoom: 2,
+      slots: [[141, 441], [235, 432], [337, 432], [162, 511], [280, 511]],
+      siteScale: .62,
+      route: 'M86 487 82 414Q80 389 110 389L365 388Q407 383 410 418L417 447',
     },
     esil: {
       path: 'M464 347 529 345 619 393 713 363 772 459 923 481 885 580 661 608 469 596Z',
       label: [502, 404], center: [692, 487], zoom: 1.85,
-      slots: [[525, 477], [628, 477], [732, 478], [548, 555], [674, 558]],
-      route: 'M489 439Q562 426 647 427L728 404Q754 432 766 462L889 503Q912 534 867 568L684 598 512 592Q482 577 485 523Z',
+      slots: [[541, 489], [631, 481], [720, 481], [548, 559], [674, 563]],
+      siteScale: .6,
+      route: 'M486 570 482 463Q482 440 503 440H678Q707 440 730 430',
     },
   };
+
+  // Reserves include captions and a small gap, not just the building artwork.
+  const LANDMARKS = {
+    'khan-shatyr': { district: 'nura', x: 391, y: 510, bounds: [-40, -40, 40, 56] },
+    baiterek: { district: 'esil', x: 828, y: 526, bounds: [-31, -44, 31, 58] },
+    'peace-palace': { district: 'almaty', x: 805, y: 400, bounds: [-36, -29, 36, 46] },
+    'old-town': { district: 'baikonur', x: 633, y: 73, bounds: [-40, -30, 40, 36] },
+  };
+
+  function siteTransform(geometry, slot) {
+    const [x, y] = geometry.slots[slot];
+    const scale = geometry.siteScale || .66;
+    return `translate(${x - 50 * scale} ${y - 32 * scale}) scale(${scale})`;
+  }
+
+  function reservedAreas(geometry) {
+    const scale = geometry.siteScale || .66;
+    const [lx, ly] = geometry.label;
+    return [
+      [lx - 17, ly - 26, lx + 157, ly + 28],
+      ...geometry.slots.map(([x, y]) => [x - 63 * scale, y - 49 * scale, x + 62 * scale, y + 56 * scale]),
+      ...Object.values(LANDMARKS).map(({ x, y, bounds: [l, t, r, b] }) => [x + l, y + t, x + r, y + b]),
+    ];
+  }
 
   const SHORT_NAMES = {
     M1: 'Автобусы', M2: 'Светофоры', M3: 'ЛРТ', M4: 'Парк', M5: 'Чистое тепло',
@@ -98,6 +126,7 @@
 
   function sceneryArtwork(geometry, index) {
     let result = '';
+    const reserved = reservedAreas(geometry);
     const coordinates = geometry.path.match(/-?\d+(?:\.\d+)?/g).map(Number);
     const xs = coordinates.filter((_, i) => i % 2 === 0);
     const ys = coordinates.filter((_, i) => i % 2 === 1);
@@ -108,7 +137,7 @@
         const x = col * 47 + 7 + (row % 2) * 12;
         const y = row * 45 + 18;
         if (x + 38 < bounds[0] || x > bounds[2] || y + 38 < bounds[1] || y > bounds[3]) continue;
-        if (geometry.slots.some(([sx, sy]) => Math.abs(x + 13 - sx) < 56 && Math.abs(y + 9 - sy) < 42)) continue;
+        if (reserved.some(([left, top, right, bottom]) => x < right && x + 41 > left && y < bottom && y + 39 > top)) continue;
         if (seed % 5 === 0) {
           result += `<path d="M${x} ${y}q13-7 27 1l-2 20q-13 6-27-1Z" fill="#d5e4c7"/>`;
           result += canopy(x + 6, y + 7, 5, seed) + canopy(x + 20, y + 14, 6, seed + 1);
@@ -146,7 +175,7 @@
       role: 'group', 'aria-labelledby': `${uid}-title ${uid}-description`,
     });
     svg.innerHTML = `<title id="${uid}-title">Интерактивная карта Астаны</title>
-      <desc id="${uid}-description">Условный город: пять районов, кварталы и река Есиль. Выберите район или проект клавишей Enter или пробелом. После приближения карту можно перетаскивать мышью или двигать стрелками. Все маршруты и размещение объектов схематичны.</desc>
+      <desc id="${uid}-description">Условный город: пять районов, кварталы и река Есиль. В районе Алматы расположен Дворец мира и согласия — стеклянная пирамида. Выберите район или проект клавишей Enter или пробелом. После приближения карту можно перетаскивать мышью или двигать стрелками. Все маршруты и размещение объектов схематичны.</desc>
       <defs>
         <linearGradient id="${uid}-water" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#83bbc8"/><stop offset=".5" stop-color="#a7d4dc"/><stop offset="1" stop-color="#7bb6ca"/></linearGradient>
         <pattern id="${uid}-dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8" fill="#dce5e5"/></pattern>
@@ -188,11 +217,20 @@
       });
       const blocks = element('g', { class: 'am-city-blocks' });
       blocks.innerHTML = sceneryArtwork(geometry, index);
+      const sceneryMask = element('mask', { id: `${uid}-${id}-scenery-mask`, maskUnits: 'userSpaceOnUse', x: 0, y: 0, width: WIDTH, height: HEIGHT, 'mask-type': 'luminance' });
+      sceneryMask.append(element('rect', { width: WIDTH, height: HEIGHT, fill: 'white' }));
+      reservedAreas(geometry).forEach(([left, top, right, bottom]) => {
+        sceneryMask.append(element('rect', { x: left, y: top, width: right - left, height: bottom - top, fill: 'black' }));
+      });
+      sceneryMask.append(element('path', { d: geometry.route, fill: 'none', stroke: 'black', 'stroke-width': 30, 'stroke-linecap': 'round' }));
+      defs.append(sceneryMask);
+      blocks.setAttribute('mask', `url(#${uid}-${id}-scenery-mask)`);
       scenery.append(blocks);
-      scenery.append(element('use', { href: `#${uid}-avenues` }));
-      const sites = geometry.slots.map(([sx, sy], slot) => {
-        const site = element('g', { class: 'am-existing-site', 'data-site-slot': slot, transform: `translate(${sx - 32} ${sy - 18})` });
-        site.innerHTML = `<path d="M-7 2 16-9 59-4 68 22 54 39 6 37Z" fill="#e1e8d6"/>${building(0, 0, 22, 13, index + slot)}${building(30, 6, 26, 17, slot)}${building(8, 24, 24, 9, index)}${canopy(47, 32, 6, slot)}${canopy(-3, 25, 5, index)}`;
+      scenery.append(element('use', { href: `#${uid}-avenues`, mask: `url(#${uid}-${id}-scenery-mask)` }));
+      scenery.append(element('path', { class: 'am-corridor', d: geometry.route }));
+      const sites = geometry.slots.map((_, slot) => {
+        const site = element('g', { class: 'am-existing-site', 'data-site-slot': slot, transform: siteTransform(geometry, slot) });
+        site.innerHTML = `<g transform="translate(16 14)"><path d="M-7 2 16-9 59-4 68 22 54 39 6 37Z" fill="#e1e8d6"/>${building(0, 0, 22, 13, index + slot)}${building(30, 6, 26, 17, slot)}${building(8, 24, 24, 9, index)}${canopy(47, 32, 6, slot)}${canopy(-3, 25, 5, index)}</g>`;
         scenery.append(site);
         return site;
       });
@@ -221,24 +259,46 @@
       <path d="${RIVER_PATH}" class="am-river-glint"/>
       <g class="am-bridges"><path d="M167 277 183 322M326 300 339 361M475 281 460 341M719 344 749 428"/><path d="M167 277 183 322M326 300 339 361M475 281 460 341M719 344 749 428"/></g>
       <text x="381" y="322" transform="rotate(-12 381 322)" class="am-river-name">ЕСІЛ / ЕСИЛЬ</text>
-      <g transform="translate(397 500)">
+      <g data-map-landmark="khan-shatyr">
         <ellipse cy="31" rx="37" ry="9" fill="#d9e4e0"/><path d="M-34 27Q-9 8 7-28 13 3 33 27Z" fill="#e8eef6" stroke="#99aec7" stroke-width="1.5"/>
         <path d="M7-28-17 27M7-28-2 28M7-28 14 28M-29 23H29M-20 15H23M-12 6H18" fill="none" stroke="#c1cfde" stroke-width="1.2"/>
         <path d="M7-28 8-37" stroke="#869dbb" stroke-width="1.5"/><path d="M-35 28H34" stroke="#99adc7" stroke-width="3" stroke-linecap="round"/>
         <text y="50" text-anchor="middle" class="am-landmark-label">Хан Шатыр</text>
       </g>
-      <g transform="translate(828 526)">
+      <g data-map-landmark="baiterek">
         <ellipse cy="31" rx="28" ry="8" fill="#dce6e0"/><path d="M-18 27H18M-12 22H12" stroke="#bcc7cf" stroke-width="4" stroke-linecap="round"/>
         <path d="M-5 21-12-18M5 21 12-18M0 21V-19M-8 8H8M-10-4H10" fill="none" stroke="#91a7bc" stroke-width="2"/>
         <circle cy="-27" r="14" fill="#dcc58c" stroke="#b99e65" stroke-width="1.5"/><path d="M-12-27H12M-10-33H10M-10-21H10M0-41Q-14-27 0-13M0-41Q14-27 0-13" fill="none" stroke="#eee0b9" stroke-width="1"/>
         <path d="M-7-17-4-8M7-17 4-8" stroke="#91a7bc" stroke-width="2"/><text y="52" text-anchor="middle" class="am-landmark-label">Байтерек</text>
       </g>
+      <g data-map-landmark="peace-palace">
+        <title>Дворец мира и согласия · район Алматы</title>
+        <ellipse cy="15" rx="33" ry="9" fill="#d7e3d6"/>
+        <path d="M-33 9 0-1 33 10 3 22Z" fill="#eae4d6" stroke="#bac8bc"/>
+        <path d="M-29 9 0-26 2 17Z" fill="#aacbd4" stroke="#668da0" stroke-width="1.2" stroke-linejoin="round"/>
+        <path d="M0-26 30 8 2 17Z" fill="#779fac" stroke="#668da0" stroke-width="1.2" stroke-linejoin="round"/>
+        <path d="M-10-14 0-26 11-14 1-9Z" fill="#7cbbd3"/>
+        <path d="M-19-3 1 3 20-3M-10-14 1-9 11-14M0-26-14 13M0-26 16 12M-19-3 2 17 20-3M-10-14 1 3 11-14" fill="none" stroke="#e1f2f4" stroke-width=".85" stroke-linejoin="round"/>
+        <path d="M0-26 2 17M-29 9 2 17 30 8" fill="none" stroke="#547f93" stroke-width="1.2"/>
+        <path d="M-8-15-5-17-2-15M2-19 5-21 8-19" fill="none" stroke="#f5fcff" stroke-width="1" stroke-linecap="round"/>
+        <path d="M-3 16V10L3 11V17" fill="#456e83"/>
+        <text text-anchor="middle" class="am-landmark-label"><tspan x="0" y="29">Дворец мира</tspan><tspan x="0" y="40">и согласия</tspan></text>
+      </g>
       <g transform="translate(946 65)"><text y="-16" text-anchor="middle" class="am-compass-label">С</text><path d="M0-9 7 13 0 8-7 13Z" fill="#94aac0"/><path d="M0-9V8L-7 13Z" fill="#d1dde7"/></g>
       <g class="am-waterfront-garden">${[[52, 291], [68, 288], [92, 289], [112, 289], [218, 304], [237, 310], [269, 315], [285, 317], [534, 324], [553, 335], [575, 343], [613, 365], [634, 364], [688, 329], [709, 332], [789, 439], [811, 446], [838, 449], [879, 450], [960, 465]].map(([x, y], i) => canopy(x, y, 4.5 + i % 2, i)).join('')}</g>
       <g transform="translate(249 320) rotate(17)"><path d="M-9 0Q0-7 10 0Q0 5-9 0Z" fill="#f8fbef" stroke="#5a929f"/><path d="M0-1V-11L7-1Z" fill="#e7c890"/></g>
       <g transform="translate(585 364) rotate(14)"><path d="M-7 0H8L4 4H-4Z" fill="#f8fbef" stroke="#5a929f"/></g>
-      <g transform="translate(676 83)"><ellipse cy="13" rx="21" ry="7" fill="#d7dfcf"/><path d="M-15 8V-13L0-21 15-13V8Z" fill="#dfd7c4" stroke="#aeb9af"/><path d="M-18-13 0-27 18-13Z" fill="#819c99"/><path d="M-9 7V-6H-3V7M3 7V-6H9V7" fill="#bad0d1"/><text y="30" text-anchor="middle" class="am-landmark-label">Старый город</text></g>`;
-    svg.append(landmarks);
+      <g data-map-landmark="old-town"><ellipse cy="13" rx="21" ry="7" fill="#d7dfcf"/><path d="M-15 8V-13L0-21 15-13V8Z" fill="#dfd7c4" stroke="#aeb9af"/><path d="M-18-13 0-27 18-13Z" fill="#819c99"/><path d="M-9 7V-6H-3V7M3 7V-6H9V7" fill="#bad0d1"/><text y="30" text-anchor="middle" class="am-landmark-label">Старый город</text></g>`;
+    const terrain = element('g', { class: 'am-terrain', 'aria-hidden': 'true' });
+    [...landmarks.children].forEach((node) => {
+      const landmark = LANDMARKS[node.getAttribute('data-map-landmark')];
+      if (landmark) {
+        node.setAttribute('transform', `translate(${landmark.x} ${landmark.y})`);
+        node.setAttribute('data-landmark-district', landmark.district);
+      } else terrain.append(node);
+    });
+    // Shoreline decorations belong to the ground, never above buildings or captions.
+    svg.append(terrain);
     const projectsLayer = element('g', { class: 'am-projects' });
     const previewLayer = element('g', { class: 'am-previews', 'aria-hidden': 'true' });
     svg.append(projectsLayer, landmarks, previewLayer);
@@ -402,13 +462,12 @@
       if (isTrain) route.append(element('path', { class: 'am-route-sleepers', d: pathData }));
       placement.append(route);
       const length = road.getTotalLength();
-      [.05, .3, .56, .8].forEach((fraction, index) => {
+      [0, .3, .65, 1].forEach((fraction, index) => {
         const point = road.getPointAtLength(length * fraction);
         const stop = element('g', { class: 'am-route-stop', 'data-route-stop': index + 1, transform: `translate(${point.x} ${point.y})` });
         stop.append(element('title', {}, `${isTrain ? 'Станция ЛРТ' : 'Остановка автобуса'} ${index + 1} · условный маршрут`));
         stop.append(element('circle', { class: 'am-stop-platform', r: isTrain ? 6 : 5 }));
         stop.append(element('circle', { class: 'am-stop-core', r: 2.1 }));
-        if (index === 0 || index === 2) stop.append(element('text', { class: 'am-stop-label', x: 8, y: -8 }, `${isTrain ? 'ЛРТ' : 'А'} ${index + 1}`));
         route.append(stop);
       });
       const moving = element('g', { class: `am-route-vehicle ${isTrain ? 'am-train' : 'am-bus'}`, 'data-route-vehicle': measureId });
@@ -416,7 +475,7 @@
       const body = element('g');
       body.innerHTML = vehicle(isTrain ? 'train' : 'bus');
       body.firstElementChild.removeAttribute('class');
-      body.firstElementChild.setAttribute('transform', 'scale(.75)');
+      body.firstElementChild.setAttribute('transform', 'scale(.62)');
       moving.append(body);
       route.append(moving);
     }
@@ -443,14 +502,13 @@
         const slot = geometry.slots.findIndex((_, index) => !taken.has(index));
         if (slot < 0) return;
         occupied.set(key, slot);
-        const [x, y] = geometry.slots[slot];
         const placement = element('g', {
           class: 'am-project-placement', 'data-object-district': districtId,
           'data-object-slot': slot, 'aria-hidden': 'true',
         });
         group.append(placement);
         if (measure.id === 'M1' || measure.id === 'M3') addRoute(placement, districtId, measure.id);
-        const site = element('g', { class: 'am-project-site', transform: `translate(${x - 37} ${y - 25}) scale(.74)` });
+        const site = element('g', { class: 'am-project-site', transform: siteTransform(geometry, slot) });
         const entrance = element('g', { class: `am-project-enter${state.motionPaused || motionQuery.matches ? ' am-enter-static' : ''}` });
         entrance.append(element('path', { class: 'am-project-ground', d: 'M-4 26 9 10 73 7 101 27 102 48 84 59 14 60-5 48Z' }));
         entrance.append(element('path', { class: 'am-project-outline', d: 'M-8 22 7 2 74 0 106 23 108 53 87 65 11 66-11 50Z' }));
@@ -488,8 +546,7 @@
       if (!slots.length) return;
       const group = element('g', { class: 'am-preview', 'data-map-preview': measure.id });
       slots.forEach(([id, slot]) => {
-        const [x, y] = GEOMETRY[id].slots[slot];
-        const site = element('g', { class: 'am-preview-placement', 'data-preview-district': id, 'data-preview-slot': slot, transform: `translate(${x - 37} ${y - 25}) scale(.74)` });
+        const site = element('g', { class: 'am-preview-placement', 'data-preview-district': id, 'data-preview-slot': slot, transform: siteTransform(GEOMETRY[id], slot) });
         site.append(element('path', { class: 'am-preview-ground', d: 'M-6 17 10 3 78 3 105 21 103 53 83 64 8 64-7 45Z' }));
         site.append(element('path', { class: 'am-preview-grid', d: 'M4 38 80 10M14 53 96 24M37 61 100 38M24 7 10 49M49 5 29 62M77 6 57 62M96 22 81 62' }));
         site.append(element('text', { class: 'am-preview-code', x: 50, y: 37, 'text-anchor': 'middle' }, measure.id));

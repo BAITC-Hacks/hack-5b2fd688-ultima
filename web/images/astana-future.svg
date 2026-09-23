@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="660" viewBox="0 0 680 660" fill="none">
+  <defs>
+    <linearGradient id="ground" x1="80" y1="390" x2="600" y2="520" gradientUnits="userSpaceOnUse"><stop stop-color="#344d47"/><stop offset=".5" stop-color="#182a25"/><stop offset="1" stop-color="#0e1917"/></linearGradient>
+    <linearGradient id="edge" x1="90" y1="480" x2="570" y2="610" gradientUnits="userSpaceOnUse"><stop stop-color="#0a3a2b"/><stop offset=".45" stop-color="#44f8bd"/><stop offset=".55" stop-color="#168d66"/><stop offset="1" stop-color="#08241e"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2=".4"><stop stop-color="#2e635c"/><stop offset=".35" stop-color="#7bb5aa"/><stop offset=".42" stop-color="#c4e0d3"/><stop offset=".48" stop-color="#42756d"/><stop offset="1" stop-color="#182e2b"/></linearGradient>
+    <linearGradient id="shadow"><stop stop-color="#132826"/><stop offset="1" stop-color="#386358"/></linearGradient>
+    <linearGradient id="chrome"><stop stop-color="#465e56"/><stop offset=".2" stop-color="#d4e5dd"/><stop offset=".34" stop-color="#64867a"/><stop offset=".52" stop-color="#1d3930"/><stop offset=".7" stop-color="#688d7e"/><stop offset=".85" stop-color="#e2f8eb"/><stop offset="1" stop-color="#395c4a"/></linearGradient>
+    <radialGradient id="sphere" cx=".28" cy=".23" r=".75"><stop stop-color="#fff7d6"/><stop offset=".19" stop-color="#dce8b6"/><stop offset=".45" stop-color="#a6bf80"/><stop offset=".67" stop-color="#536c40"/><stop offset=".86" stop-color="#1a3024"/><stop offset="1" stop-color="#91c79a"/></radialGradient>
+    <radialGradient id="halo"><stop stop-color="#08e49c" stop-opacity=".18"/><stop offset="1" stop-color="#08e49c" stop-opacity="0"/></radialGradient>
+    <linearGradient id="roof" x2=".8" y2="1"><stop stop-color="#aecebe"/><stop offset="1" stop-color="#3e695c"/></linearGradient>
+    <pattern id="windows" width="12" height="16" patternUnits="userSpaceOnUse"><path d="M2 0v16M0 13h12" stroke="#b5e7d6" stroke-opacity=".2"/><path d="M4 3h5v5H4z" fill="#9cffcf" fill-opacity=".14"/></pattern>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="soft"><feGaussianBlur stdDeviation="12"/></filter>
+    <g id="tree"><path d="M0 0v19" stroke="#9bb9a7" stroke-width="2"/><path d="M0-26C-17-17-18 2 0 6 18 2 17-17 0-26" fill="url(#roof)"/><path d="M0-19V5" stroke="#c9efdc" stroke-opacity=".3"/></g>
+  </defs>
+  <ellipse cx="349" cy="398" rx="322" ry="238" fill="url(#halo)"/>
+  <g opacity=".4" stroke="#558b78" stroke-width=".6">
+    <ellipse cx="350" cy="484" rx="308" ry="160" transform="rotate(-9 350 484)"/>
+    <path d="m31 455 325-186 303 166M31 486l325 162 304-183" stroke-dasharray="3 9"/>
+    <path d="M353 42v534M34 411l611 8" stroke-dasharray="2 12"/>
+  </g>
+  <ellipse cx="352" cy="547" rx="250" ry="72" fill="#07df9b" opacity=".12" filter="url(#soft)"/>
+  <!-- A miniature, imagined Astana on a luminous city block. -->
+  <path d="m58 440 298-153 281 147v37L343 626 58 477Z" fill="url(#edge)"/>
+  <path d="m58 440 298-153 281 147-294 155Z" fill="url(#ground)" stroke="#92d8b2" stroke-opacity=".6"/>
+  <path d="m61 470 282 148 291-154" stroke="#22e8a5" stroke-width="2"/>
+  <path d="m62 470 281 148 291-154" stroke="#28ffba" stroke-width="7" opacity=".45" filter="url(#glow)"/>
+  <path d="m98 443 258-131 241 124-254 132Z" stroke="#77bc9f" stroke-opacity=".25"/>
+  <path d="m153 488 256-130M208 517l250-129M115 417l282 143M210 369l281 142" stroke="#90ac9d" stroke-width="6" stroke-opacity=".12"/>
+  <path d="m154 488 255-130M115 417l282 143" stroke="#8effc9" stroke-width="1.5" stroke-dasharray="14 6" opacity=".5"/>
+  <!-- Northern glass towers. -->
+  <path d="m145 403 61-32V180l-61 32Z" fill="url(#glass)"/>
+  <path d="m206 371 39 21V201l-39-21Z" fill="url(#shadow)"/>
+  <path d="m145 212 61-32 39 21-60 32Z" fill="url(#roof)"/>
+  <path d="m145 212 40 21v191l-40-21Z" fill="url(#windows)"/>
+  <path d="m185 233 21-11v149l-21 12Z" fill="url(#windows)"/>
+  <path d="M145 213v190m40-170v191m21-244v191" stroke="#d9f9e5" stroke-opacity=".4"/>
+  <path d="m224 408 51-26V265l-51 26Z" fill="url(#glass)"/>
+  <path d="m275 382 28 15V280l-28-15Z" fill="url(#shadow)"/>
+  <path d="m224 291 51-26 28 15-50 26Z" fill="url(#roof)"/>
+  <path d="m230 304 38-20m-38 38 38-20m-38 38 38-20m-38 38 38-20m-38 38 38-20" stroke="#b1e1c9" stroke-opacity=".4"/>
+  <!-- A silver, tapered landmark with a golden-green sphere. -->
+  <ellipse cx="362" cy="468" rx="79" ry="32" fill="#0b1c17"/>
+  <ellipse cx="352" cy="450" rx="61" ry="27" fill="url(#chrome)"/>
+  <ellipse cx="352" cy="444" rx="61" ry="25" fill="#253e32" stroke="#8db296"/>
+  <path d="M305 238c12 51 42 147 20 198q26 19 54 0c-23-50 6-147 20-198Z" fill="url(#chrome)"/>
+  <path d="M311 227c26 95 37 129 31 211m-16-211c19 85 25 139 23 214m44-214c-24 89-38 157-29 211m12-211c-15 93-25 162-20 214" stroke="#d5ecd6" stroke-opacity=".78" stroke-width="2"/>
+  <path d="M327 366q25 11 50 0m-53 19q26 12 54 0m-55 18q29 12 57 0" stroke="#afc8ac" stroke-width="2" opacity=".65"/>
+  <circle cx="352" cy="195" r="65" fill="url(#sphere)" stroke="#dae2bd" stroke-opacity=".6"/>
+  <ellipse cx="352" cy="195" rx="43" ry="65" stroke="#d8e8bb" stroke-opacity=".28"/>
+  <ellipse cx="352" cy="195" rx="20" ry="65" stroke="#d8e8bb" stroke-opacity=".23"/>
+  <path d="M293 168q60 35 118 0m-123 24q64 38 129 0m-125 29q60 32 119 0" stroke="#e2edc5" stroke-opacity=".3"/>
+  <ellipse cx="329" cy="163" rx="23" ry="11" fill="#feffe7" opacity=".35" transform="rotate(-25 329 163)"/>
+  <!-- Right-bank stepped office buildings. -->
+  <path d="m440 428 66-34V234l-66 34Z" fill="url(#glass)"/>
+  <path d="m506 394 44 23V257l-44-23Z" fill="url(#shadow)"/>
+  <path d="m440 268 66-34 44 23-66 35Z" fill="url(#roof)"/>
+  <path d="m440 268 44 24v159l-44-23Z" fill="url(#windows)"/>
+  <path d="m484 292 22-12v114l-22 12Z" fill="url(#windows)"/>
+  <path d="m463 256 41-20V192l-41 20Z" fill="url(#glass)"/>
+  <path d="m504 236 24 13v-44l-24-13Z" fill="url(#shadow)"/>
+  <path d="m463 212 41-20 24 13-41 21Z" fill="url(#roof)"/>
+  <path d="M440 268v160m44-136v159m22-217v160" stroke="#d9f9e5" stroke-opacity=".4"/>
+  <path d="m502 477 62-32v-48l-62 32Z" fill="url(#glass)"/>
+  <path d="m564 445 28 14v-48l-28-14Z" fill="url(#shadow)"/>
+  <path d="m502 429 62-32 28 14-62 32Z" fill="url(#roof)"/>
+  <path d="m510 442 45-24m-45 34 45-24m-45 34 45-24" stroke="#b5efd4" stroke-opacity=".45"/>
+  <!-- Landscaped foreground and an architectural tent silhouette. -->
+  <ellipse cx="257" cy="478" rx="65" ry="22" fill="#0b1e17"/>
+  <path d="M195 470q28-32 69-135 2 98 56 143c-33 23-96 12-125-8" fill="url(#chrome)"/>
+  <path d="M264 335q-18 99-50 140m50-140q-6 108-25 148m25-148q4 103 3 151m-3-151q12 111 32 149" stroke="#d7e7d7" stroke-width="1" stroke-opacity=".45"/>
+  <path d="M264 335v-18" stroke="#b3d8bc" stroke-width="2"/>
+  <g opacity=".9"><use href="#tree" x="137" y="448"/><use href="#tree" x="162" y="461"/><use href="#tree" x="393" y="511"/><use href="#tree" x="420" y="497"/><use href="#tree" x="447" y="483"/><use href="#tree" x="333" y="543"/><use href="#tree" x="364" y="558"/></g>
+  <path d="m193 514 150 76 177-92" stroke="#43edb0" stroke-width="2"/>
+  <g fill="#92ffd0"><circle cx="193" cy="514" r="3"/><circle cx="343" cy="590" r="3"/><circle cx="520" cy="498" r="3"/></g>
+  <g stroke="#7efdc8" stroke-opacity=".6"><path d="M94 275v-45h44M529 160h48v45M555 546h41v-29"/><path d="M341 81h22m-11-11v22"/></g>
+  <g fill="#a8d6c1" font-family="monospace" font-size="8" letter-spacing="2"><text x="96" y="220">CITY / 01</text><text x="504" y="152">FUTURE</text><text x="570" y="564">2026</text></g>
+</svg>

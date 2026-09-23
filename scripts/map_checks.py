@@ -451,7 +451,84 @@ def check_map_views(page) -> None:
     assert not analyses, "Changing map display must not recalculate or invoke AI."
 
 
+def check_map_clearance(browser, base_url: str) -> None:
+    """Exercise dense, valid plans against the actual painted SVG geometry."""
+    context = browser.new_context(viewport={"width": 1440, "height": 1000})
+    page = context.new_page()
+    page.goto(base_url, wait_until="networkidle")
+    page.evaluate("""async () => {
+        await document.fonts.ready;
+        const host = document.createElement('div');
+        host.id = 'map-layout-fixture';
+        host.style.cssText = 'position:fixed;inset:0 auto auto 0;width:min(1000px,100vw);z-index:200';
+        document.body.append(host);
+        window.layoutMap = createAstanaMap(host, state.config);
+    }""")
+    plans = (
+        ["M3", "M7", "M8", "M10", "M11"],
+        ["M1", "M4", "M8", "M10", "M13"],
+        ["M2", "M6", "M12", "M14", "M9"],
+    )
+    config = page.request.get(f"{base_url}/api/config").json()
+    city_measures = {item["id"] for item in config["measures"] if item["type"] == "city"}
+    for width in (1440, 390):
+        page.set_viewport_size({"width": width, "height": 1000})
+        for district in config["districts"]:
+            for measures in plans:
+                selections = [{"measure_id": item, "district_id": None if item in city_measures else district["id"]} for item in measures]
+                response = page.request.post(f"{base_url}/api/simulate", data={"selections": selections})
+                assert response.ok, response.text()
+                page.evaluate("""({selections, report, district}) => {
+                    layoutMap.update({selections: [], preview: null});
+                    layoutMap.update({selections, report, activeDistrict: district, motionPaused: true});
+                }""", {"selections": selections, "report": response.json(), "district": district["id"]})
+                failures = page.evaluate("""() => {
+                    const root = document.querySelector('#map-layout-fixture');
+                    const svg = root.querySelector('svg'), scale = svg.getScreenCTM().a;
+                    const name = el => `${el.closest('[data-map-project]')?.dataset.mapProject || el.dataset.mapLandmark || 'label'}:${el.closest('[data-object-district]')?.dataset.objectDistrict || el.closest('[data-map-district]')?.dataset.mapDistrict || ''}`;
+                    const items = [...root.querySelectorAll('.am-project-site, .am-district-label, [data-map-landmark]')].map(el => ({el, name: name(el), box: el.getBoundingClientRect()}));
+                    const overlaps = (a,b,gap=0) => a.left-gap<b.right && a.right+gap>b.left && a.top-gap<b.bottom && a.bottom+gap>b.top;
+                    const failures = [];
+                    items.forEach((a,i) => items.slice(i+1).forEach(b => {
+                        if (overlaps(a.box,b.box,scale*2)) failures.push(`${a.name} overlaps ${b.name}`);
+                    }));
+                    for (const route of root.querySelectorAll('.am-route')) {
+                        const path = route.querySelector('.am-route-road');
+                        const district = root.querySelector(`[data-map-district="${route.dataset.routeDistrict}"] .am-district-area`);
+                        const matrix = path.getScreenCTM(), length = path.getTotalLength();
+                        for (let i=0;i<=200;i++) {
+                            const point = path.getPointAtLength(length*i/200), p = point.matrixTransform(matrix);
+                            if (!district.isPointInFill(point)) failures.push('Route leaves district');
+                            for (const item of items) {
+                                const b = item.box, pad = scale*8;
+                                if (p.x>b.left-pad && p.x<b.right+pad && p.y>b.top-pad && p.y<b.bottom+pad) failures.push(`Route crosses ${item.name}`);
+                            }
+                        }
+                        const vehicle = route.querySelector('[data-route-vehicle]'), animation = vehicle.getAnimations()[0];
+                        for (let i=0;i<=160;i++) {
+                            animation.currentTime = animation.effect.getTiming().duration*i/161;
+                            for (const item of items) if (overlaps(vehicle.getBoundingClientRect(),item.box,scale)) failures.push(`Vehicle crosses ${item.name}`);
+                        }
+                    }
+                    // A shoreline drawn later used to hide project names even when sites were disjoint.
+                    const terrain = root.querySelector('.am-terrain'), projects = root.querySelector('.am-projects');
+                    if (!(terrain.compareDocumentPosition(projects) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push('Terrain obscures projects');
+                    const river = root.querySelector('.am-river'), matrix = river.getScreenCTM(), length = river.getTotalLength();
+                    for (let i=0;i<=300;i++) {
+                        const p = river.getPointAtLength(length*i/300).matrixTransform(matrix);
+                        for (const item of items.filter(item => item.el.matches('.am-project-site'))) {
+                            const b = item.box, pad = scale*13;
+                            if (p.x>b.left-pad && p.x<b.right+pad && p.y>b.top-pad && p.y<b.bottom+pad) failures.push(`River crosses ${item.name}`);
+                        }
+                    }
+                    return [...new Set(failures)];
+                }""")
+                assert not failures, f"{width}px / {district['id']} / {measures}: {failures}"
+    context.close()
+
+
 def check_city_map(browser, base_url: str) -> None:
+    check_map_clearance(browser, base_url)
     context = browser.new_context(viewport={"width": 1440, "height": 1000})
     page = context.new_page()
     errors: list[str] = []

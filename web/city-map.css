@@ -25,6 +25,7 @@
 .astana-map .am-district-scenery,
 .astana-map .am-district-border,
 .astana-map .am-district-label,
+.astana-map .am-terrain,
 .astana-map .am-landmarks,
 .astana-map .am-previews { pointer-events: none; }
 .astana-map .am-map-caption { fill: #587063; font-size: 10px; font-weight: 750; letter-spacing: 1.9px; }
@@ -37,12 +38,13 @@
 .astana-map .am-district:nth-child(5) .am-district-area { fill: #e7ece5; }
 .astana-map .am-district-scenery { opacity: .88; transition: opacity .22s ease; }
 .astana-map .am-city-blocks { opacity: .88; }
+.astana-map .am-corridor { fill: none; stroke: #d5dfda; stroke-width: 12; stroke-linecap: round; stroke-linejoin: round; }
 .astana-map .am-district-border { fill: none; stroke: #aabeb1; stroke-width: 1.5; stroke-dasharray: 3 4; stroke-linejoin: round; transition: stroke .2s ease, stroke-width .2s ease; }
 .astana-map .am-district:hover .am-district-border { stroke: #528c87; stroke-width: 2.5; }
-.astana-map .am-district[aria-pressed='true'] .am-district-border { stroke: #326f78; stroke-width: 3; stroke-dasharray: none; }
-.astana-map .am-district:focus-visible .am-district-border { stroke: #254fbe; stroke-width: 4; stroke-dasharray: 8 4; }
+.astana-map .am-district[aria-pressed='true'] .am-district-border { stroke: #24734f; stroke-width: 3; stroke-dasharray: none; }
+.astana-map .am-district:focus-visible .am-district-border { stroke: #146d49; stroke-width: 4; stroke-dasharray: 8 4; }
 .astana-map .am-label-accent { fill: none; stroke: #859f90; stroke-width: 3; stroke-linecap: round; }
-.astana-map .am-district[aria-pressed='true'] .am-label-accent { stroke: #286d7a; stroke-width: 4; }
+.astana-map .am-district[aria-pressed='true'] .am-label-accent { stroke: #24734f; stroke-width: 4; }
 .astana-map .am-district-name,
 .astana-map .am-district-score { paint-order: stroke; stroke: #f2f5eb; stroke-width: 5px; stroke-linejoin: round; }
 .astana-map .am-district-name { fill: #304f4e; font-size: 20px; font-weight: 800; letter-spacing: -.5px; }
@@ -96,7 +98,7 @@
 .astana-map .am-tree-vein { fill: none; stroke: #b4d5b4; stroke-width: 1.5; stroke-linecap: round; }
 .astana-map .am-tree { transform-box: fill-box; transform-origin: center bottom; animation: am-tree-grow .95s cubic-bezier(.2,.75,.3,1.1) var(--am-delay, 0ms) both; }
 
-/* A vehicle's animated offset path is the entire district loop, in SVG user units. */
+/* Vehicles travel back and forth along a reserved corridor, in SVG user units. */
 .astana-map .am-route { --am-route-color: #327e90; }
 .astana-map .am-route-lrt { --am-route-color: #5975ba; }
 .astana-map .am-route path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -110,8 +112,8 @@
 .astana-map .am-stop-core { fill: var(--am-route-color); }
 .astana-map .am-stop-label { fill: #405e73; font-size: 8px; font-weight: 750; paint-order: stroke; stroke: #f4f7ee; stroke-width: 3; }
 .astana-map .am-route-vehicle { offset-distance: 5%; offset-rotate: auto; offset-anchor: 0px 0px; transform-box: view-box; transform-origin: 0 0; filter: drop-shadow(0 2px 1px #29465340); }
-.astana-map .am-bus { animation: am-bus-drive 20s linear infinite; }
-.astana-map .am-train { animation: am-train-drive 24s linear infinite; }
+.astana-map .am-bus { --am-return-angle: 180deg; animation: am-transit-drive 32s linear infinite; }
+.astana-map .am-train { animation: am-transit-drive 40s linear infinite; }
 .astana-map .am-project-active .am-route-halo,
 .astana-map .am-project:focus-visible .am-route-halo { stroke: #819dcf; opacity: .35; }
 
@@ -136,8 +138,17 @@
 .astana-map .am-walker { animation: am-crossing-walk 6s ease-in-out infinite; }
 @keyframes am-project-arrive { from { opacity: .2; } to { opacity: 1; } }
 @keyframes am-tree-grow { from { transform: scale(.55, .15); opacity: .2; } to { transform: scale(1); opacity: 1; } }
-@keyframes am-bus-drive { 0% { offset-distance: 0%; } 4%, 8% { offset-distance: 5%; } 29%, 33% { offset-distance: 30%; } 55%, 59% { offset-distance: 56%; } 79%, 83% { offset-distance: 80%; } 100% { offset-distance: 100%; } }
-@keyframes am-train-drive { 0% { offset-distance: 0%; } 4%, 8% { offset-distance: 5%; } 29%, 33% { offset-distance: 30%; } 55%, 59% { offset-distance: 56%; } 79%, 83% { offset-distance: 80%; } 100% { offset-distance: 100%; } }
+@keyframes am-transit-drive {
+  0%, 4% { offset-distance: 0%; offset-rotate: auto 0deg; }
+  14%, 18% { offset-distance: 30%; }
+  28%, 32% { offset-distance: 65%; }
+  42%, 46% { offset-distance: 100%; offset-rotate: auto 0deg; }
+  50%, 54% { offset-distance: 100%; offset-rotate: auto var(--am-return-angle, 0deg); }
+  64%, 68% { offset-distance: 65%; }
+  78%, 82% { offset-distance: 30%; }
+  92%, 96% { offset-distance: 0%; offset-rotate: auto var(--am-return-angle, 0deg); }
+  100% { offset-distance: 0%; offset-rotate: auto calc(var(--am-return-angle, 0deg) * 2); }
+}
 @keyframes am-soft-glow { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
 @keyframes am-clean-breeze { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
 @keyframes am-heartbeat-draw { 0%, 100% { stroke-dashoffset: 0; opacity: 1; } 50% { stroke-dashoffset: 55; opacity: .5; } }
@@ -159,7 +170,6 @@
 @media (max-width: 600px) {
   .astana-map { border-radius: 14px; }
   .astana-map .am-district-name { font-size: 23px; }
-  .astana-map .am-project-caption { font-size: 16px; }
   .astana-map .am-project-code { font-size: 12px; }
   .astana-map .am-map-caption { font-size: 12px; }
 }
