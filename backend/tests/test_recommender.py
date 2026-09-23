@@ -1,7 +1,6 @@
 from backend.app.engine import simulate, validate_choices
 from backend.app.recommender import recommend_alternatives
 
-
 REFERENCE_SCENARIO = [
     {"measure_id": "M7", "district_id": "nura"},
     {"measure_id": "M8", "district_id": "nura"},

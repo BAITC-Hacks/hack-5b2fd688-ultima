@@ -63,9 +63,11 @@ def _fallback_explanation(
 
     if alternatives:
         recommendations = [
-            f"Проверьте вариант «{alternatives[0]['description']}»: модель даёт "
-            f"Score {alternatives[0]['score']:.2f} ({alternatives[0]['display_score_delta']:+.2f} "
-            "к текущему сценарию). Это альтернативный расчёт, а не применённое решение."
+            (
+                f"Проверьте вариант «{alternatives[0]['description']}»: модель даёт "
+                f"Score {alternatives[0]['score']:.2f} ({alternatives[0]['display_score_delta']:+.2f} "
+                "к текущему сценарию). Это альтернативный расчёт, а не применённое решение."
+            )
         ]
     else:
         recommendations = [

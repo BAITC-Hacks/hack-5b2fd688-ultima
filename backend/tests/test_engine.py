@@ -4,7 +4,6 @@ import pytest
 
 from backend.app.engine import baseline_report, simulate, validate_choices
 
-
 REFERENCE_SCENARIO = [
     {"measure_id": "M7", "district_id": "nura"},
     {"measure_id": "M8", "district_id": "nura"},

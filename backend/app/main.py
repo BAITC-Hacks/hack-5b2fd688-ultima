@@ -12,9 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from .ai import explain
-from .engine import baseline_report, public_config, simulate, validate_choices
+from .engine import public_config, simulate, validate_choices
 from .recommender import recommend_alternatives
-
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 WEB_DIR = ROOT_DIR / "web"

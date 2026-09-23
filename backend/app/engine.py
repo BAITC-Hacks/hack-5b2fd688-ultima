@@ -7,7 +7,6 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-
 DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "simulation.json"
 
 
@@ -16,7 +15,6 @@ def _load_dataset() -> dict[str, Any]:
         data = json.load(file)
 
     indicator_ids = {item["id"] for item in data["indicators"]}
-    district_ids = {item["id"] for item in data["districts"]}
     measure_ids = {item["id"] for item in data["measures"]}
     if abs(sum(item["weight"] for item in data["indicators"]) - 1) > 1e-9:
         raise ValueError("Indicator weights must add up to 1")
